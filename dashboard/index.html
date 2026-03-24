@@ -884,7 +884,7 @@ header {
     <div class="badge-embed">
       <div class="badge-embed-label">Embed code</div>
       <div class="badge-code" id="badgeCode" onclick="copyBadge()" title="Click to copy">
-        ![SciGate](https://scigate.io/badge/your-repo)
+        ![SciGate](https://img.shields.io/badge/SciGate-0%20%2F%20100-grey)
       </div>
     </div>
   </div>
@@ -1080,7 +1080,9 @@ function renderBadge() {
   const bg = s >= 75 ? 'var(--teal)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
   el.style.background = bg;
   el.style.color = s >= 50 ? '#0a0d12' : '#fff';
-  code.textContent = `![SciGate](https://scigate.io/badge/${document.getElementById('repoName').textContent.trim()})`;
+  const repo = document.getElementById('repoName').textContent.trim();
+  const color = s >= 75 ? 'brightgreen' : s >= 50 ? 'yellow' : 'red';
+  code.textContent = `![SciGate](https://img.shields.io/badge/SciGate-${s}%20%2F%20100-${color})`;
 }
 
 function renderAll() {
@@ -1194,8 +1196,18 @@ function applyResult(data) {
   document.getElementById('commitGrade').textContent = STATE.grade;
   document.getElementById('commitGate').textContent = STATE.score >= 75 ? 'CLEAR' : 'BLOCKED';
   document.getElementById('commitGate').style.color = STATE.score >= 75 ? 'var(--teal)' : 'var(--red)';
-  document.getElementById('commitTime').textContent = 'just now';
+  document.getElementById('commitTime').textContent = new Date().toLocaleTimeString();
   document.getElementById('commitMsg').textContent = STATE.score + '/100';
+
+  if (data.memory && data.memory.top_patterns) {
+    STATE.memory = data.memory.top_patterns.map(p => ({
+      desc: p.description || p.pattern_id || 'Unknown',
+      count: p.count || 0,
+      repos: (p.repos || []).join(' · '),
+    }));
+    renderMemory();
+    document.getElementById('memBadge').textContent = (data.memory.top_patterns.length || 0) + ' patterns';
+  }
 
   renderAll();
 }
@@ -1255,34 +1267,15 @@ async function runScan() {
       }
     } catch (e) {
       document.getElementById('heroDesc').innerHTML =
-        `<span style="color:var(--red)">API not reachable. Using demo mode.</span>`;
+        `<span style="color:var(--red)">API not reachable — is the server running on this host?</span>`;
     }
   }
 
-  setTimeout(() => {
-    const envScore = 12 + Math.floor(Math.random() * 14);
-    const seedScore = 8 + Math.floor(Math.random() * 18);
-    const dataScore = 3 + Math.floor(Math.random() * 20);
-    const docScore = 12 + Math.floor(Math.random() * 14);
-    const total = envScore + seedScore + dataScore + docScore;
-
-    const demoFixes = [
-      { rank: 1, title: 'No pinned environment file', dimension: 'env', points_recoverable: 25 - envScore, files: [] },
-      { rank: 2, title: 'Unseeded random calls detected', dimension: 'seeds', points_recoverable: 25 - seedScore, files: [] },
-      { rank: 3, title: 'No data download or preparation script', dimension: 'data', points_recoverable: 25 - dataScore, files: [] },
-      { rank: 4, title: 'Missing runtime estimates in README', dimension: 'docs', points_recoverable: 25 - docScore, files: [] },
-    ].filter(f => f.points_recoverable > 0);
-
-    document.getElementById('heroTitle').textContent = 'Demo scan';
-    document.getElementById('heroDesc').innerHTML = '<span style="color:var(--amber)">No repo path provided — showing demo data</span>';
-    applyResult({
-      domain: 'demo',
-      grade: getGrade(total).label,
-      scores: { env: envScore, seeds: seedScore, data: dataScore, docs: docScore, total: total },
-      fixes: demoFixes,
-    });
-    scanEnd();
-  }, 1800);
+  scanEnd();
+  if (!raw) {
+    document.getElementById('heroDesc').innerHTML =
+      '<span style="color:var(--text2)">Enter a GitLab project path or local directory above, then hit Scan.</span>';
+  }
 }
 
 function copyBadge() {

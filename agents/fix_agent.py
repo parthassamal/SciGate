@@ -27,7 +27,7 @@ import httpx
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
-ANTHROPIC_MODEL  = "claude-sonnet-4-6"
+ANTHROPIC_MODEL  = "claude-sonnet-4-20250514"
 MAX_TOKENS       = 4096
 GATE_THRESHOLD   = int(os.getenv("SCIGATE_THRESHOLD", "75"))
 

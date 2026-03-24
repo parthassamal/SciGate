@@ -231,18 +231,12 @@ def decay():
 
 
 @main.command()
-@click.option("--port", type=int, default=8742)
-@click.option("--no-browser", is_flag=True)
-def dashboard(port: int, no_browser: bool):
-    """Launch the interactive SciGate dashboard."""
-    server_path = Path(__file__).parent.parent / "dashboard" / "server.py"
-    if not server_path.exists():
-        console.print("[red]Dashboard not found.[/red]")
-        sys.exit(1)
-    cmd = [sys.executable, str(server_path), "--port", str(port)]
-    if no_browser:
-        cmd.append("--no-browser")
-    console.print(f"[bold]Launching SciGate Dashboard[/bold] on port {port}...")
+@click.option("--port", type=int, default=8000)
+def dashboard(port: int):
+    """Launch the interactive SciGate dashboard (FastAPI)."""
+    console.print(f"[bold]Launching SciGate Dashboard[/bold] on http://localhost:{port}")
+    cmd = [sys.executable, "-m", "uvicorn", "api.server:app",
+           "--host", "0.0.0.0", "--port", str(port)]
     subprocess.run(cmd)
 
 

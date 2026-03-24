@@ -155,12 +155,16 @@ def scan(req: ScanRequest, background_tasks: BackgroundTasks):
                 project_id=project_id,
             )
 
-    background_tasks.add_task(_run_memory_agent_bg, score=score, repo_name=repo_name)
+    mem_result = None
+    try:
+        mem_result = memory_run(score, repo_name)
+    except Exception as exc:
+        print(f"[Server] Memory agent failed (non-fatal): {exc}")
 
     return {
         **score,
         "fix_mr_url": fix_mr_url,
-        "memory":     None,
+        "memory":     mem_result,
     }
 
 
@@ -203,13 +207,6 @@ if DASHBOARD_DIR.exists():
 
 
 # ─── BACKGROUND TASK HELPERS ─────────────────────────────────────────────────
-
-def _run_memory_agent_bg(score: dict, repo_name: str) -> None:
-    try:
-        memory_run(score, repo_name)
-    except Exception as exc:
-        print(f"[Server] Memory agent background task failed: {exc}")
-
 
 def _run_fix_agent_bg(score_path: str, project_id: str) -> None:
     try:

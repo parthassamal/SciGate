@@ -1,8 +1,8 @@
 # SciGate — Reproducibility Credit Score for Science Code
 
-[![SciGate](https://img.shields.io/badge/SciGate-63%20%2F%20100-F5A623)](https://gitlab.com/gitlab-ai-hackathon)
 [![GitLab Duo Agent Flow](https://img.shields.io/badge/GitLab%20Duo-Agent%20Flow-FC6D26)](https://about.gitlab.com/blog/gitlab-duo-agent-platform-complete-getting-started-guide/)
 [![Powered by Claude](https://img.shields.io/badge/Powered%20by-Claude-8B5CF6)](https://anthropic.com)
+[![License: MIT](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
 
 > **The reproducibility crisis costs science $28 billion/year.** SciGate is a GitLab Duo
 > Agent Flow that gives every research repository a living credit score — and sends Claude
@@ -25,13 +25,13 @@ On every push, SciGate:
 4. **Blocks** `v*-submission` tags if the score is below 75
 5. **Remembers** failure patterns across the entire org and alerts when they spike
 
-## Architecture — three GitLab Duo agents
+## Architecture — three agents
 
 ```
-Push / Tag / /scigate command
+Push / Tag / @ai-scigate mention
         │
         ▼
-Agent 1: Audit  (audit_agent.py)
+Agent 1: Audit  (agents/audit_agent.py)
 ├─ Domain classification (ml-training | bioinformatics | climate | econometrics)
 ├─ Environment scoring   (pinned deps, Dockerfile SHA, conda env)
 ├─ Seed scoring          (torch.manual_seed, np.random.seed, set.seed)
@@ -39,13 +39,13 @@ Agent 1: Audit  (audit_agent.py)
 └─ Documentation         (run instructions, hardware, expected outputs)
         │
         ▼
-Agent 2: Fix  (fix_agent.py)  ← powered by Anthropic Claude
+Agent 2: Fix  (agents/fix_agent.py)  ← powered by Anthropic Claude
 ├─ Generates targeted file patches per domain
 ├─ Safety filter: never touches model/train/loss files
 └─ Opens draft MR with projected score
         │
         ▼
-Agent 3: Org Memory  (memory_agent.py)
+Agent 3: Org Memory  (agents/memory_agent.py)
 ├─ JSONL scan history per repo
 ├─ Cross-repo failure pattern index
 ├─ Leaderboard (sorted by score)
@@ -55,12 +55,12 @@ Agent 3: Org Memory  (memory_agent.py)
 ## Quickstart — Docker (recommended)
 
 ```bash
-git clone https://gitlab.com/gitlab-ai-hackathon/scigate && cd scigate
+git clone https://gitlab.com/gitlab3483113/scigate && cd scigate
 
 # Build and launch dashboard + API
 docker compose up --build
 
-# Open http://localhost:8000 — type a repo path, hit Scan
+# Open http://localhost:8000 — type a GitLab project path, hit Scan
 
 # Scan a repo mounted into the container
 SCAN_REPO_PATH=/path/to/research/repo docker compose run \
@@ -70,7 +70,7 @@ SCAN_REPO_PATH=/path/to/research/repo docker compose run \
 ## Quickstart — local Python
 
 ```bash
-git clone https://gitlab.com/gitlab-ai-hackathon/scigate && cd scigate
+git clone https://gitlab.com/gitlab3483113/scigate && cd scigate
 
 pip install -r requirements.txt
 
@@ -80,12 +80,23 @@ python agents/audit_agent.py --path /path/to/your/research/repo --pretty
 # Start the API + dashboard
 uvicorn api.server:app --reload --port 8000
 # Open http://localhost:8000
+```
 
-# Scan via API
+## Scan a remote GitLab repo
+
+No need to clone — SciGate reads files via the GitLab API:
+
+```bash
+# Via CLI
+python agents/audit_agent.py --gitlab-project inkscape/inkscape --pretty
+
+# Via API
 curl -X POST http://localhost:8000/scan \
   -H "Content-Type: application/json" \
-  -d '{"local_path": "/path/to/repo"}'
+  -d '{"gitlab_project": "inkscape/inkscape"}'
 ```
+
+Or type `inkscape/inkscape` directly in the dashboard input and hit Scan.
 
 ## Environment variables
 
@@ -94,27 +105,28 @@ curl -X POST http://localhost:8000/scan \
 | `ANTHROPIC_API_KEY` | Yes (Agent 2) | Claude API key for fix generation |
 | `GITLAB_TOKEN` | Yes (remote scans) | GitLab personal access token |
 | `GITLAB_URL` | No | Default: `https://gitlab.com` |
+| `GITLAB_PROJECT_ID` | Yes (Agent 2 MR) | GitLab project ID for MR creation |
 | `SCIGATE_THRESHOLD` | No | Min score for submission tags. Default: `75` |
 | `SCIGATE_MEMORY_DIR` | No | Memory storage path. Default: `./memory` |
 
-## Install as a GitLab Duo Agent Flow
+## Install as a GitLab Duo Flow
 
-1. Request access to the [GitLab AI Hackathon group](https://forms.gle/EeCH2WWUewK3eGmVA)
-2. Copy `gitlab/scigate-flow.yml` into your repo
-3. Set `ANTHROPIC_API_KEY` as a masked CI variable
-4. Push — SciGate will scan on every commit
+1. Go to your project: **Automate > Flows > New flow**
+2. Paste the contents of [`gitlab/scigate-flow.yml`](gitlab/scigate-flow.yml)
+3. Enable the flow and set triggers (mention, assign, or pipeline events)
+4. Set `ANTHROPIC_API_KEY` as a masked CI/CD variable
+5. Mention the flow's service account on any MR to trigger a scan
 
-## Use in Cursor
+The flow YAML follows the [GitLab Flow Registry v1 specification](https://gitlab.com/gitlab-org/modelops/applied-ml/code-suggestions/ai-assist/-/blob/main/docs/flow_registry/v1.md).
 
-Copy `.cursor/rules/scigate-agents.mdc` into your `.cursor/rules/` directory.
-Claude in Cursor will automatically apply the scoring rubric and fix generation
-rules whenever you open any Python, R, or YAML file in this repo.
+## GitLab CI/CD Pipeline
 
-## Use with Claude Code
+SciGate also ships a `.gitlab-ci.yml` that runs on every push:
 
-The `.claude/SKILL.md` file is loaded automatically when you run `claude` in
-this repo's directory. Claude Code will have full context of the scoring rubric,
-domain classifications, API patterns, and protected file rules.
+- **scigate-audit** — scores the repo, produces `audit-report.json`
+- **scigate-fix** — runs Claude fix agent when score < threshold (on tags/MRs)
+- **scigate-memory** — records scan to org memory
+- **scigate-gate** — blocks `v*-submission` tags if score < 75
 
 ## Score dimensions
 
@@ -129,18 +141,24 @@ domain classifications, API patterns, and protected file rules.
 
 - **Audit only:** < 3s on any hardware (pure file reading + regex)
 - **With fix generation:** 15–45s depending on Claude API response time
+- **Remote GitLab scan:** 5–20s depending on repo size and API latency
 - **No GPU required** for any component
 
-## Demo video
+## Use in Cursor
 
-[Watch the 3-minute demo →](https://youtube.com/watch?v=TODO)
+Copy `.cursor/rules/scigate-agents.mdc` into your `.cursor/rules/` directory.
+Claude in Cursor will automatically apply the scoring rubric and fix generation
+rules whenever you open any Python, R, or YAML file in this repo.
 
-Shows: real research repo with score 51 → SciGate fires → Claude generates fixes
-→ draft MR opened → score projected to 84 → submission tag clears.
+## Use with Claude Code
+
+The `.claude/SKILL.md` file is loaded automatically when you run `claude` in
+this repo's directory. Claude Code will have full context of the scoring rubric,
+domain classifications, API patterns, and protected file rules.
 
 ## License
 
-MIT — see LICENSE
+MIT — see [LICENSE](LICENSE)
 
 ---
 
