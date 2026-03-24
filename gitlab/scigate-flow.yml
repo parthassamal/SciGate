@@ -1,0 +1,318 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# SciGate — Reproducibility Credit Score
+# GitLab Duo Agent Flow
+#
+# Three-agent orchestration:
+#   Agent 1 — Audit       : classify domain, score all 4 dimensions
+#   Agent 2 — Fix         : Claude generates targeted fixes, opens MR
+#   Agent 3 — Org Memory  : persist patterns, update leaderboard
+#
+# Triggers:
+#   - Every push to any branch       -> lightweight audit
+#   - Push of v*-submission tag       -> full audit + gate check
+#   - /scigate slash command in MR    -> on-demand full scan
+#   - Scheduled nightly (all repos)   -> org memory update
+# ─────────────────────────────────────────────────────────────────────────────
+
+name: scigate
+description: >
+  SciGate scores research repos 0-100 for reproducibility across four
+  dimensions (Environment, Seeds, Data, Docs). On push it audits the diff;
+  on submission tags it gates the release; on demand it opens a fix MR.
+
+# ── TRIGGERS ──────────────────────────────────────────────────────────────────
+triggers:
+  - type: push
+    branches: ["*"]
+    conditions:
+      - changed_files_match: ["**/*.py", "**/*.R", "**/*.jl",
+                              "requirements*.txt", "*.yaml", "*.yml",
+                              "Dockerfile", "README.md"]
+
+  - type: tag
+    pattern: "v*-submission"
+
+  - type: slash_command
+    command: /scigate
+    context: merge_request
+
+  - type: schedule
+    cron: "0 2 * * *"
+    description: Nightly org-memory consolidation
+
+# ── CONTEXT ───────────────────────────────────────────────────────────────────
+context:
+  project_files:
+    - path: ".scigate.yml"
+      optional: true
+      description: "Per-repo config overrides (threshold, skip paths, domain hint)"
+    - path: "README.md"
+      optional: true
+    - path: "requirements.txt"
+      optional: true
+    - path: "requirements-dev.txt"
+      optional: true
+    - path: "environment.yml"
+      optional: true
+    - path: "Dockerfile"
+      optional: true
+
+  variables:
+    ANTHROPIC_API_KEY:
+      description: "Anthropic API key for Agent 2 fix generation"
+      masked: true
+      required: true
+    SCIGATE_THRESHOLD:
+      description: "Minimum score to allow v*-submission tags"
+      default: "75"
+    SCIGATE_ORG_PROJECT:
+      description: "GitLab project ID for org-memory storage"
+      required: false
+
+# ── AGENT 1: AUDIT ────────────────────────────────────────────────────────────
+agents:
+  - name: scigate-audit
+    description: >
+      Classify the repository domain and score it across four reproducibility
+      dimensions. Output a structured JSON score object.
+
+    model: claude-sonnet-4-20250514
+
+    tools:
+      - type: code_search
+        scope: project
+      - type: file_read
+        paths: ["**/*"]
+        max_files: 80
+      - type: gitlab_api
+        actions: [list_files, get_file_content, list_commits, get_diff]
+
+    instructions: |
+      You are SciGate's audit agent. Produce a reproducibility score for a
+      scientific research repository.
+
+      ## Step 1 — Domain classification
+      Read the repo's primary language files, README, and config files.
+      Classify into exactly one domain:
+        ml-training        - PyTorch/TensorFlow/JAX training scripts
+        bioinformatics     - genomics, proteomics, sequencing pipelines
+        climate-model      - NetCDF, Fortran, MPI, climate simulation
+        econometrics       - R, Stata, economic panel data analysis
+        general-science    - any other empirical research code
+
+      ## Step 2 — Score each dimension (0-25 each)
+
+      ### Environment (0-25)
+      Start at 25. Deduct:
+        -15  no environment file (requirements.txt, conda env.yml, Dockerfile)
+        -10  requirements.txt with unpinned deps (no ==)
+        -5   Dockerfile base image uses mutable tag not SHA digest
+        -3   CUDA version not specified for GPU-dependent code
+
+      ### Seeds (0-25)
+      Start at 25. Deduct 5 per unseeded random call in experiment/train/eval.
+      Check: numpy.random.seed(), torch.manual_seed(), random.seed(),
+             tf.random.set_seed(), set.seed() (R), Random.seed!() (Julia)
+
+      ### Data provenance (0-25)
+      Start at 25. Deduct:
+        -5 per hardcoded absolute path
+        -10  no data download/generation script
+        -5   raw data committed without provenance docs
+        -5   no checksums or version pins for external datasets
+
+      ### Documentation (0-25)
+      Start at 25. Deduct:
+        -8   no step-by-step run instructions in README
+        -6   hardware requirements not specified
+        -5   estimated runtime not provided
+        -4   no description of expected outputs
+        -2   no citation/reference for the methodology
+
+      ## Step 3 — Compute total and top fixes
+      Total = env + seeds + data + docs (capped 0-100).
+      Rank all deductions by points_recoverable desc. Top 5 become the fix list.
+
+      ## Output format:
+      ```json
+      {
+        "domain": "ml-training",
+        "scores": { "env": 22, "seeds": 15, "data": 8, "docs": 18, "total": 63 },
+        "grade": "FAIR",
+        "commit_sha": "{{commit.sha}}",
+        "trigger": "push|tag|slash_command|schedule",
+        "fixes": [
+          {
+            "rank": 1,
+            "title": "Human-readable title",
+            "files": ["path/to/file.py"],
+            "dimension": "data",
+            "points_recoverable": 14,
+            "claude_fix_hint": "One sentence on what to change"
+          }
+        ],
+        "gate_blocked": false,
+        "gate_threshold": 75,
+        "scan_duration_ms": 0
+      }
+      ```
+
+      Grade thresholds: 90-100 EXCELLENT, 75-89 GOOD, 50-74 FAIR, 25-49 POOR, 0-24 CRITICAL
+
+    post_actions:
+      - type: post_comment
+        target: "{{trigger.context}}"
+        template: |
+          ## SciGate score: **{{scores.total}} / 100** — {{grade}}
+
+          | Dimension | Score |
+          |---|---|
+          | Environment | {{scores.env}} / 25 |
+          | Random seeds | {{scores.seeds}} / 25 |
+          | Data provenance | {{scores.data}} / 25 |
+          | Documentation | {{scores.docs}} / 25 |
+
+          **Top fix:** {{fixes[0].title}} (+{{fixes[0].points_recoverable}} pts)
+
+          {% if gate_blocked %}
+          > Submission blocked. Score {{scores.total}} < threshold {{gate_threshold}}.
+          {% endif %}
+
+      - type: block_pipeline
+        condition: "trigger == 'tag' and scores.total < gate_threshold"
+        message: >
+          SciGate blocked this submission tag.
+          Score: {{scores.total}}/100. Required: {{gate_threshold}}/100.
+
+      - type: trigger_agent
+        agent: scigate-fix
+        condition: "scores.total < gate_threshold or trigger == 'slash_command'"
+        inputs:
+          score_object: "{{output}}"
+
+# ── AGENT 2: FIX (CLAUDE) ────────────────────────────────────────────────────
+  - name: scigate-fix
+    description: >
+      Read the audit score object, generate targeted code fixes using
+      the Anthropic API (Claude), and open a draft MR. Never modifies
+      experiment logic — only reproducibility infrastructure.
+
+    model: claude-sonnet-4-20250514
+
+    tools:
+      - type: file_read
+        paths: ["**/*"]
+        max_files: 30
+      - type: file_write
+        paths: ["**/*"]
+        blocked_patterns: ["**/train*.py", "**/model*.py", "**/loss*.py"]
+      - type: gitlab_api
+        actions: [create_branch, create_commit, create_merge_request,
+                  create_issue, add_label]
+      - type: anthropic_api
+        model: claude-sonnet-4-20250514
+        max_tokens: 4096
+
+    instructions: |
+      You receive a SciGate score object from Agent 1.
+      Your job: generate the actual code fixes and open a draft MR.
+
+      ## Rules
+      1. Process fixes in rank order (highest points_recoverable first).
+      2. NEVER modify training logic, model definitions, or loss functions.
+      3. ONLY add or modify: environment files, seed injection wrappers,
+         data/README.md, download scripts, README.md sections.
+      4. Each fix must be a minimal, reviewable change.
+      5. Always explain changes in the MR description.
+
+      ## MR format
+      Branch: scigate/fix-{{short_sha}}
+      Title: "SciGate: +{{total_points_recovered}} pts — {{fix_count}} fixes"
+      Labels: scigate, reproducibility
+
+    post_actions:
+      - type: trigger_agent
+        agent: scigate-memory
+        inputs:
+          score_object: "{{audit_score}}"
+          fixes_applied: "{{fixes_applied}}"
+          repo_id: "{{project.id}}"
+
+# ── AGENT 3: ORG MEMORY ──────────────────────────────────────────────────────
+  - name: scigate-memory
+    description: >
+      Persist scan results to org-level memory, detect recurring failure
+      patterns, update leaderboard, and alert on pattern spikes.
+
+    model: claude-haiku-4-5-20250514
+
+    tools:
+      - type: gitlab_api
+        actions: [get_file, update_file, create_file, list_projects]
+        project: "{{env.SCIGATE_ORG_PROJECT}}"
+
+    instructions: |
+      You maintain SciGate's org-level memory. Update three data structures:
+
+      ## 1. Scan history  (memory/scans/{repo_id}.jsonl)
+      Append: { ts, repo_id, domain, scores, total, commit_sha }
+
+      ## 2. Pattern index  (memory/patterns.json)
+      For each fix, increment occurrence count.
+      Track: { pattern_id, description, dimension, count, repos: [repo_id] }
+      If count > 5, set alert: true.
+
+      ## 3. Leaderboard  (memory/leaderboard.json)
+      Update: { repo_id, name, domain, latest_score, best_score,
+                trend: "up"|"down"|"stable", last_scanned }
+      Sort by latest_score desc.
+
+      ## 4. Alert detection
+      If any pattern has alert: true and increased in last 7 days,
+      create a GitLab issue with label scigate-alert.
+
+    post_actions:
+      - type: post_comment
+        target: "{{trigger.context}}"
+        condition: "trigger == 'slash_command'"
+        template: |
+          **Org pattern:** "{{top_org_pattern.description}}" affects
+          {{top_org_pattern.count}} repos in your group.
+
+# ── FLOW ORCHESTRATION ────────────────────────────────────────────────────────
+flow:
+  on_push:
+    steps:
+      - agent: scigate-audit
+        timeout: 120s
+        retry: 1
+
+  on_tag:
+    steps:
+      - agent: scigate-audit
+        timeout: 180s
+      - agent: scigate-fix
+        depends_on: scigate-audit
+        condition: "scigate-audit.output.gate_blocked == true"
+        timeout: 300s
+      - agent: scigate-memory
+        depends_on: scigate-audit
+        timeout: 60s
+
+  on_slash_command:
+    steps:
+      - agent: scigate-audit
+        timeout: 180s
+      - agent: scigate-fix
+        depends_on: scigate-audit
+        timeout: 300s
+      - agent: scigate-memory
+        depends_on: [scigate-audit, scigate-fix]
+        timeout: 60s
+
+  on_schedule:
+    steps:
+      - agent: scigate-memory
+        timeout: 120s
+        inputs:
+          mode: "consolidate"

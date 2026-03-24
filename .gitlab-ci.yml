@@ -1,0 +1,89 @@
+stages:
+  - audit
+  - fix
+  - memory
+
+variables:
+  SCIGATE_THRESHOLD: "75"
+
+# ── Agent 1: Audit ──────────────────────────────────────────────────────────
+scigate-audit:
+  stage: audit
+  image: python:3.12-slim
+  before_script:
+    - pip install -q httpx pyyaml pathspec toml gitpython
+  script:
+    - python agents/audit_agent.py --path . --pretty --out audit-report.json
+    - cat audit-report.json
+    - |
+      SCORE=$(python -c "import json; print(json.load(open('audit-report.json'))['scores']['total'])")
+      echo "SciGate score: $SCORE / 100"
+      if [ "$SCORE" -lt "$SCIGATE_THRESHOLD" ]; then
+        echo "⚠ Score $SCORE is below threshold $SCIGATE_THRESHOLD"
+      fi
+  artifacts:
+    paths:
+      - audit-report.json
+    reports:
+      dotenv: audit.env
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+    - if: $CI_COMMIT_TAG =~ /^v.*-submission$/
+
+# ── Agent 2: Fix (Claude) ──────────────────────────────────────────────────
+scigate-fix:
+  stage: fix
+  image: python:3.12-slim
+  needs:
+    - job: scigate-audit
+      artifacts: true
+  before_script:
+    - pip install -q anthropic httpx
+  script:
+    - |
+      SCORE=$(python -c "import json; print(json.load(open('audit-report.json'))['scores']['total'])")
+      if [ "$SCORE" -lt "$SCIGATE_THRESHOLD" ]; then
+        echo "Score $SCORE < $SCIGATE_THRESHOLD — running fix agent"
+        python agents/fix_agent.py
+      else
+        echo "Score $SCORE >= $SCIGATE_THRESHOLD — no fixes needed"
+      fi
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*-submission$/
+    - if: $CI_PIPELINE_SOURCE == "merge_request_event"
+  allow_failure: true
+
+# ── Agent 3: Org Memory ────────────────────────────────────────────────────
+scigate-memory:
+  stage: memory
+  image: python:3.12-slim
+  needs:
+    - job: scigate-audit
+      artifacts: true
+  before_script:
+    - pip install -q httpx
+  script:
+    - python agents/memory_agent.py record --input audit-report.json
+  rules:
+    - if: $CI_PIPELINE_SOURCE == "push"
+    - if: $CI_COMMIT_TAG =~ /^v.*-submission$/
+  allow_failure: true
+
+# ── Gate: Block submission tags below threshold ────────────────────────────
+scigate-gate:
+  stage: memory
+  needs:
+    - job: scigate-audit
+      artifacts: true
+  script:
+    - |
+      SCORE=$(python3 -c "import json; print(json.load(open('audit-report.json'))['scores']['total'])")
+      echo "SciGate gate check: score=$SCORE threshold=$SCIGATE_THRESHOLD"
+      if [ "$SCORE" -lt "$SCIGATE_THRESHOLD" ]; then
+        echo "BLOCKED: Score $SCORE < $SCIGATE_THRESHOLD. Fix reproducibility issues before tagging."
+        exit 1
+      fi
+      echo "CLEARED: Score $SCORE >= $SCIGATE_THRESHOLD"
+  rules:
+    - if: $CI_COMMIT_TAG =~ /^v.*-submission$/

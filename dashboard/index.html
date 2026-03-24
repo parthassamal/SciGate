@@ -1,0 +1,1340 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>SciGate — Reproducibility Credit Score</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<style>
+*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+:root {
+  --bg:       #0a0d12;
+  --bg2:      #0f1318;
+  --bg3:      #141920;
+  --bg4:      #1a2028;
+  --border:   rgba(255,255,255,0.07);
+  --border2:  rgba(255,255,255,0.12);
+  --amber:    #F5A623;
+  --amber2:   #FFC55C;
+  --amber-d:  #8B5C0D;
+  --teal:     #00C9A7;
+  --teal2:    #00E6C0;
+  --red:      #FF5E5E;
+  --red2:     #FF8080;
+  --text:     #E8EAF0;
+  --text2:    #8B92A8;
+  --text3:    #4A5168;
+  --mono:     'JetBrains Mono', monospace;
+  --sans:     'DM Sans', sans-serif;
+  --display:  'Syne', sans-serif;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--sans);
+  min-height: 100vh;
+  overflow-x: hidden;
+  font-size: 14px;
+  line-height: 1.6;
+}
+
+body::before {
+  content: '';
+  position: fixed;
+  inset: 0;
+  background-image:
+    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
+  background-size: 40px 40px;
+  pointer-events: none;
+  z-index: 0;
+}
+
+.container {
+  max-width: 1120px;
+  margin: 0 auto;
+  padding: 0 24px;
+  position: relative;
+  z-index: 1;
+}
+
+/* ─── HEADER ─── */
+header {
+  border-bottom: 1px solid var(--border);
+  padding: 0;
+}
+.header-inner {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  height: 60px;
+}
+.logo {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-family: var(--display);
+  font-weight: 700;
+  font-size: 18px;
+  letter-spacing: -0.02em;
+  color: var(--text);
+}
+.logo-mark {
+  width: 30px;
+  height: 30px;
+  border: 1.5px solid var(--amber);
+  border-radius: 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  position: relative;
+}
+.logo-mark::after {
+  content: '';
+  width: 10px;
+  height: 10px;
+  background: var(--amber);
+  border-radius: 2px;
+}
+.logo span { color: var(--amber); }
+
+.header-meta {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+}
+.repo-pill {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 5px 12px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+.repo-pill .dot {
+  width: 6px; height: 6px;
+  background: var(--teal);
+  border-radius: 50%;
+  animation: pulse 2s ease-in-out infinite;
+}
+@keyframes pulse {
+  0%,100% { opacity: 1; }
+  50% { opacity: 0.4; }
+}
+.header-actions {
+  display: flex;
+  gap: 8px;
+}
+.btn {
+  font-family: var(--sans);
+  font-size: 12px;
+  font-weight: 500;
+  padding: 6px 14px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.btn:hover { background: var(--bg3); color: var(--text); }
+.btn-primary {
+  background: var(--amber);
+  color: #0a0d12;
+  border-color: var(--amber);
+  font-weight: 600;
+}
+.btn-primary:hover { background: var(--amber2); border-color: var(--amber2); color: #0a0d12; }
+.btn-primary:disabled {
+  opacity: 0.6;
+  cursor: wait;
+}
+
+/* ─── HERO BAND ─── */
+.hero-band {
+  padding: 40px 0 36px;
+  display: grid;
+  grid-template-columns: 1fr auto;
+  gap: 40px;
+  align-items: center;
+  border-bottom: 1px solid var(--border);
+}
+.hero-left h1 {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 10px;
+}
+.hero-left h2 {
+  font-family: var(--display);
+  font-size: 32px;
+  font-weight: 800;
+  letter-spacing: -0.03em;
+  color: var(--text);
+  line-height: 1.1;
+  margin-bottom: 12px;
+}
+.hero-left p {
+  font-size: 14px;
+  color: var(--text2);
+  max-width: 480px;
+  line-height: 1.7;
+}
+.domain-tag {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: rgba(0,201,167,0.1);
+  border: 1px solid rgba(0,201,167,0.25);
+  border-radius: 4px;
+  padding: 3px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--teal);
+  margin-bottom: 14px;
+}
+
+/* ─── SCORE GAUGE ─── */
+.score-gauge {
+  position: relative;
+  width: 200px;
+  height: 200px;
+  flex-shrink: 0;
+}
+.gauge-svg { width: 200px; height: 200px; transform: rotate(-135deg); }
+.gauge-track {
+  fill: none;
+  stroke: var(--bg4);
+  stroke-width: 10;
+  stroke-linecap: round;
+}
+.gauge-fill {
+  fill: none;
+  stroke: var(--amber);
+  stroke-width: 10;
+  stroke-linecap: round;
+  stroke-dasharray: 565;
+  stroke-dashoffset: 565;
+  transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
+  filter: drop-shadow(0 0 6px rgba(245,166,35,0.5));
+}
+
+.gauge-center {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+}
+.gauge-number {
+  font-family: var(--mono);
+  font-size: 52px;
+  font-weight: 700;
+  color: var(--amber);
+  line-height: 1;
+  letter-spacing: -0.03em;
+  transition: color 0.4s ease;
+}
+.gauge-max {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text3);
+  margin-top: 2px;
+}
+.gauge-grade {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  margin-top: 4px;
+  transition: color 0.4s ease;
+}
+
+/* ─── COMMIT INFO ─── */
+.commit-bar {
+  display: flex;
+  align-items: center;
+  gap: 20px;
+  padding: 12px 16px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 20px 0 0;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+}
+.commit-sha { color: var(--amber); }
+.commit-bar .sep { color: var(--text3); }
+
+/* ─── DIMENSIONS GRID ─── */
+.section-label {
+  font-family: var(--display);
+  font-size: 11px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin: 32px 0 16px;
+}
+.dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 28px;
+}
+.dim-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  position: relative;
+  overflow: hidden;
+  transition: border-color 0.2s, transform 0.2s;
+  cursor: default;
+}
+.dim-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-2px);
+}
+.dim-card::before {
+  content: '';
+  position: absolute;
+  top: 0; left: 0; right: 0;
+  height: 2px;
+  border-radius: 10px 10px 0 0;
+}
+.dim-card.good::before { background: var(--teal); }
+.dim-card.warn::before { background: var(--amber); }
+.dim-card.bad::before  { background: var(--red); }
+.dim-label {
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .12em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.dim-score-row {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  margin-bottom: 12px;
+}
+.dim-score {
+  font-family: var(--mono);
+  font-size: 30px;
+  font-weight: 700;
+  line-height: 1;
+}
+.dim-card.good .dim-score { color: var(--teal); }
+.dim-card.warn .dim-score { color: var(--amber); }
+.dim-card.bad  .dim-score { color: var(--red); }
+.dim-max {
+  font-family: var(--mono);
+  font-size: 13px;
+  color: var(--text3);
+}
+.dim-bar-track {
+  height: 3px;
+  background: var(--bg4);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.dim-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  width: 0%;
+  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.dim-card.good .dim-bar-fill { background: var(--teal); }
+.dim-card.warn .dim-bar-fill { background: var(--amber); }
+.dim-card.bad  .dim-bar-fill { background: var(--red); }
+.dim-note {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.5;
+}
+
+/* ─── TWO COLUMN LAYOUT ─── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 360px;
+  gap: 16px;
+  margin-bottom: 24px;
+}
+
+/* ─── PANELS ─── */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+}
+.panel-header {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title {
+  font-family: var(--display);
+  font-size: 12px;
+  font-weight: 700;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+.panel-badge {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(245,166,35,0.15);
+  color: var(--amber);
+}
+
+/* ─── FIX ITEMS ─── */
+.fix-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 14px;
+  align-items: start;
+  padding: 14px 18px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s, opacity 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+.fix-item:last-child { border-bottom: none; }
+.fix-item:hover { background: var(--bg3); }
+.fix-item.applied {
+  opacity: 0.35;
+}
+.fix-item.applied::after {
+  content: 'APPLIED';
+  position: absolute;
+  right: 18px;
+  top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 9px;
+  font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--teal);
+  background: rgba(0,201,167,0.1);
+  border: 1px solid rgba(0,201,167,0.2);
+  padding: 2px 8px;
+  border-radius: 3px;
+}
+.fix-index {
+  font-family: var(--mono);
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text3);
+  padding-top: 2px;
+  min-width: 16px;
+}
+.fix-title {
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 3px;
+  line-height: 1.4;
+}
+.fix-file {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+.fix-points {
+  font-family: var(--mono);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  padding-top: 2px;
+}
+.fix-points.high { color: var(--teal); }
+.fix-points.med  { color: var(--amber); }
+
+/* ─── ORG MEMORY ─── */
+.memory-item {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+}
+.memory-item:last-child { border-bottom: none; }
+.memory-freq {
+  font-family: var(--mono);
+  font-size: 18px;
+  font-weight: 700;
+  color: var(--text3);
+  min-width: 36px;
+  text-align: right;
+}
+.memory-body { flex: 1; }
+.memory-pattern {
+  font-size: 12px;
+  font-weight: 500;
+  color: var(--text);
+  margin-bottom: 2px;
+}
+.memory-repos {
+  font-size: 11px;
+  color: var(--text3);
+}
+.memory-trend {
+  font-family: var(--mono);
+  font-size: 11px;
+  padding: 2px 6px;
+  border-radius: 3px;
+}
+.memory-trend.up {
+  background: rgba(255,94,94,0.12);
+  color: var(--red2);
+}
+.memory-trend.down {
+  background: rgba(0,201,167,0.1);
+  color: var(--teal);
+}
+
+/* ─── BADGE PANEL ─── */
+.badge-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.badge-display {
+  padding: 24px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+.badge-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 0;
+  border-radius: 4px;
+  overflow: hidden;
+  font-family: var(--mono);
+  font-size: 11px;
+  font-weight: 600;
+  border: 1px solid rgba(255,255,255,0.08);
+}
+.badge-left {
+  background: #1a2028;
+  color: #8B92A8;
+  padding: 4px 10px;
+}
+.badge-right {
+  padding: 4px 10px;
+  transition: background 0.3s, color 0.3s;
+}
+.badge-embed { padding: 14px 18px; }
+.badge-embed-label {
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .1em;
+  text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 8px;
+}
+.badge-code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 10px 12px;
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  cursor: pointer;
+  transition: border-color 0.15s, color 0.15s;
+}
+.badge-code:hover { border-color: var(--border2); }
+.badge-code.copied {
+  border-color: var(--teal);
+  color: var(--teal);
+}
+
+/* ─── GATE STATUS ─── */
+.gate-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: 10px;
+  padding: 18px;
+  display: flex;
+  align-items: center;
+  gap: 16px;
+  margin-bottom: 40px;
+  transition: border-color 0.4s ease;
+}
+.gate-panel.cleared { border-color: rgba(0,201,167,0.3); }
+.gate-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-shrink: 0;
+  font-size: 18px;
+  transition: all 0.4s ease;
+}
+.gate-icon.blocked {
+  background: rgba(255,94,94,0.12);
+  border: 1px solid rgba(255,94,94,0.2);
+}
+.gate-icon.clear {
+  background: rgba(0,201,167,0.1);
+  border: 1px solid rgba(0,201,167,0.2);
+}
+.gate-body { flex: 1; }
+.gate-title {
+  font-family: var(--display);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 2px;
+  transition: color 0.4s ease;
+}
+.gate-title.blocked { color: var(--red2); }
+.gate-title.cleared { color: var(--teal); }
+.gate-sub {
+  font-size: 12px;
+  color: var(--text2);
+}
+.gate-threshold {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text3);
+  text-align: right;
+}
+
+/* ─── SCAN PROGRESS ─── */
+.scan-progress {
+  height: 2px;
+  background: var(--bg4);
+  border-radius: 1px;
+  overflow: hidden;
+  margin-top: 12px;
+  opacity: 0;
+  transition: opacity 0.3s;
+}
+.scan-progress.active { opacity: 1; }
+.scan-progress-bar {
+  height: 100%;
+  background: linear-gradient(90deg, var(--amber), var(--amber2));
+  border-radius: 1px;
+  width: 0%;
+  transition: width 0.3s ease;
+}
+
+/* ─── HISTORY SPARKLINE ─── */
+.sparkline-wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+.sparkline {
+  display: flex;
+  align-items: end;
+  gap: 2px;
+  height: 24px;
+}
+.spark-bar {
+  width: 4px;
+  border-radius: 1px;
+  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+}
+.sparkline-label {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+}
+
+/* ─── INPUT ─── */
+.repo-input-wrap {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+.repo-input {
+  flex: 1;
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 8px 14px;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--text);
+  outline: none;
+  transition: border-color 0.15s;
+}
+.repo-input:focus { border-color: var(--amber); }
+.repo-input::placeholder { color: var(--text3); }
+
+/* ─── ANIMATIONS ─── */
+@keyframes fadeInUp {
+  from { opacity: 0; transform: translateY(16px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-band      { animation: fadeInUp 0.5s ease both; }
+.dimensions-grid { animation: fadeInUp 0.5s ease 0.1s both; }
+.two-col        { animation: fadeInUp 0.5s ease 0.2s both; }
+.gate-panel     { animation: fadeInUp 0.5s ease 0.3s both; }
+.badge-panel    { animation: fadeInUp 0.5s ease 0.35s both; }
+
+@keyframes scanPulse {
+  0%   { box-shadow: 0 0 0 0 rgba(245,166,35,0.3); }
+  70%  { box-shadow: 0 0 0 8px rgba(245,166,35,0); }
+  100% { box-shadow: 0 0 0 0 rgba(245,166,35,0); }
+}
+.scanning { animation: scanPulse 1.2s ease infinite; }
+
+/* ─── SCROLLBAR ─── */
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+
+/* ─── RESPONSIVE ─── */
+@media (max-width: 900px) {
+  .dimensions-grid { grid-template-columns: repeat(2, 1fr); }
+  .two-col { grid-template-columns: 1fr; }
+  .hero-band { grid-template-columns: 1fr; text-align: center; }
+  .score-gauge { margin: 0 auto; }
+}
+</style>
+</head>
+<body>
+
+<header>
+<div class="container">
+<div class="header-inner">
+  <div class="logo">
+    <div class="logo-mark"></div>
+    Sci<span>Gate</span>
+  </div>
+  <div class="header-meta">
+    <div class="repo-pill" id="repoPill">
+      <div class="dot"></div>
+      <span id="repoName">your-repo</span>
+    </div>
+    <div class="header-actions">
+      <button class="btn" onclick="showHistory()">History</button>
+      <button class="btn btn-primary" onclick="runScan()">Scan now</button>
+    </div>
+  </div>
+</div>
+</div>
+</header>
+
+<div class="container">
+
+  <!-- HERO -->
+  <div class="hero-band">
+    <div class="hero-left">
+      <div class="domain-tag" id="domainTag">—</div>
+      <h1>Reproducibility Credit Score</h1>
+      <h2 id="heroTitle">Enter a repo path below</h2>
+      <p id="heroDesc">Paste a local directory path and hit <strong>Scan repo</strong> to get a live reproducibility score.</p>
+      <div class="repo-input-wrap">
+        <input class="repo-input" placeholder="GitLab project (e.g. inkscape/inkscape) or local path" id="repoInput">
+        <button class="btn btn-primary" onclick="runScan()" id="scanBtn">Scan repo</button>
+      </div>
+      <div class="scan-progress" id="scanProgress">
+        <div class="scan-progress-bar" id="scanProgressBar"></div>
+      </div>
+      <!-- Score history sparkline -->
+      <div class="sparkline-wrap" id="sparklineWrap">
+        <div class="sparkline" id="sparkline"></div>
+        <div class="sparkline-label">last 8 scans</div>
+      </div>
+    </div>
+
+    <div class="score-gauge">
+      <svg class="gauge-svg" viewBox="0 0 200 200">
+        <circle class="gauge-track" cx="100" cy="100" r="80"
+          stroke-dasharray="565" stroke-dashoffset="142"/>
+        <circle class="gauge-fill" id="gaugeFill" cx="100" cy="100" r="80"/>
+      </svg>
+      <div class="gauge-center">
+        <div class="gauge-number" id="gaugeNum">0</div>
+        <div class="gauge-max">/ 100</div>
+        <div class="gauge-grade" id="gaugeGrade">—</div>
+      </div>
+    </div>
+  </div>
+
+  <!-- COMMIT BAR -->
+  <div class="commit-bar" id="commitBar">
+    <span>domain</span>
+    <span class="commit-sha" id="commitDomain">—</span>
+    <span class="sep">&middot;</span>
+    <span>grade <span style="color:var(--text)" id="commitGrade">—</span></span>
+    <span class="sep">&middot;</span>
+    <span>gate <span style="color:var(--text)" id="commitGate">—</span></span>
+    <span class="sep">&middot;</span>
+    <span id="commitMsg">waiting for scan</span>
+    <span style="margin-left:auto" id="commitTime"></span>
+  </div>
+
+  <!-- DIMENSIONS -->
+  <div class="section-label">Score dimensions</div>
+
+  <div class="dimensions-grid" id="dimsGrid">
+    <div class="dim-card" id="dim0">
+      <div class="dim-label">Environment</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore0">0</div>
+        <div class="dim-max">/ 25</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar0"></div></div>
+      <div class="dim-note" id="dimNote0">Scan a repo to see results</div>
+    </div>
+    <div class="dim-card" id="dim1">
+      <div class="dim-label">Random seeds</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore1">0</div>
+        <div class="dim-max">/ 25</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar1"></div></div>
+      <div class="dim-note" id="dimNote1">Scan a repo to see results</div>
+    </div>
+    <div class="dim-card" id="dim2">
+      <div class="dim-label">Data provenance</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore2">0</div>
+        <div class="dim-max">/ 25</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar2"></div></div>
+      <div class="dim-note" id="dimNote2">Scan a repo to see results</div>
+    </div>
+    <div class="dim-card" id="dim3">
+      <div class="dim-label">Documentation</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore3">0</div>
+        <div class="dim-max">/ 25</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar3"></div></div>
+      <div class="dim-note" id="dimNote3">Scan a repo to see results</div>
+    </div>
+  </div>
+
+  <!-- TWO COL -->
+  <div class="two-col">
+
+    <!-- FIXES -->
+    <div class="panel" id="fixesPanel">
+      <div class="panel-header">
+        <div class="panel-title">Recommended fixes</div>
+        <div class="panel-badge" id="fixBadge">ranked by ROI</div>
+      </div>
+      <div id="fixList"></div>
+    </div>
+
+    <!-- ORG MEMORY -->
+    <div class="panel">
+      <div class="panel-header">
+        <div class="panel-title">Org memory</div>
+        <div class="panel-badge" id="memBadge">scan to populate</div>
+      </div>
+      <div id="memoryList"></div>
+    </div>
+
+  </div>
+
+  <!-- BADGE -->
+  <div class="badge-panel">
+    <div class="panel-header">
+      <div class="panel-title">README badge</div>
+    </div>
+    <div class="badge-display">
+      <div class="badge-chip">
+        <div class="badge-left">SciGate</div>
+        <div class="badge-right" id="badgeScore" style="background:var(--text2);color:#0a0d12;">0 / 100</div>
+      </div>
+    </div>
+    <div class="badge-embed">
+      <div class="badge-embed-label">Embed code</div>
+      <div class="badge-code" id="badgeCode" onclick="copyBadge()" title="Click to copy">
+        ![SciGate](https://scigate.io/badge/your-repo)
+      </div>
+    </div>
+  </div>
+
+  <!-- GATE STATUS -->
+  <div class="gate-panel" id="gatePanel">
+    <div class="gate-icon blocked" id="gateIcon">&times;</div>
+    <div class="gate-body">
+      <div class="gate-title blocked" id="gateTitle">Submission tag blocked</div>
+      <div class="gate-sub" id="gateSub">Scan a repository to see gate status.</div>
+    </div>
+    <div class="gate-threshold" id="gateThreshold">
+      Threshold: 75 / 100<br>
+      <span style="color:var(--text2);font-size:11px">awaiting scan</span>
+    </div>
+  </div>
+
+</div>
+
+<script>
+// ─── STATE ───────────────────────────────────────────────────────────────────
+
+const STATE = {
+  score: 0,
+  scores: { env: 0, seeds: 0, data: 0, docs: 0 },
+  domain: '—',
+  grade: '—',
+  history: [],
+  fixes: [],
+  dimNotes: { env: '', seeds: '', data: '', docs: '' },
+  memory: [],
+  appliedFixes: new Set(),
+  scanning: false,
+};
+
+const GATE_THRESHOLD = 75;
+
+const GRADE_MAP = [
+  [90, 'EXCELLENT', 'brightgreen'],
+  [75, 'GOOD', 'green'],
+  [50, 'FAIR', 'amber'],
+  [25, 'POOR', 'orange'],
+  [0,  'CRITICAL', 'red'],
+];
+
+function getGrade(score) {
+  for (const [min, label, color] of GRADE_MAP) {
+    if (score >= min) return { label, color };
+  }
+  return { label: 'CRITICAL', color: 'red' };
+}
+
+function getColor(score, max) {
+  const pct = score / max;
+  if (pct >= 0.8) return 'good';
+  if (pct >= 0.5) return 'warn';
+  return 'bad';
+}
+
+// ─── ANIMATION HELPERS ───────────────────────────────────────────────────────
+
+function animateCount(el, from, to, duration, cb) {
+  const start = performance.now();
+  function step(now) {
+    const p = Math.min((now - start) / duration, 1);
+    const ease = 1 - Math.pow(1 - p, 3);
+    el.textContent = Math.round(from + (to - from) * ease);
+    if (p < 1) requestAnimationFrame(step);
+    else if (cb) cb();
+  }
+  requestAnimationFrame(step);
+}
+
+function setGaugeValue(score) {
+  const fill = document.getElementById('gaugeFill');
+  const numEl = document.getElementById('gaugeNum');
+  const gradeEl = document.getElementById('gaugeGrade');
+  const prev = parseInt(numEl.textContent) || 0;
+  const { label, color } = getGrade(score);
+
+  const arc = 565 * 0.75;
+  const used = arc * (score / 100);
+  fill.style.strokeDashoffset = 565 - used;
+
+  const colorVar = score >= 75 ? 'var(--teal)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+  fill.style.stroke = colorVar;
+  numEl.style.color = colorVar;
+  gradeEl.style.color = colorVar;
+  gradeEl.textContent = label;
+
+  animateCount(numEl, prev, score, 1400);
+}
+
+// ─── RENDER ──────────────────────────────────────────────────────────────────
+
+function renderDimensions() {
+  const dims = [
+    { key: 'env', label: 'Environment', score: STATE.scores.env },
+    { key: 'seeds', label: 'Random seeds', score: STATE.scores.seeds },
+    { key: 'data', label: 'Data provenance', score: STATE.scores.data },
+    { key: 'docs', label: 'Documentation', score: STATE.scores.docs },
+  ];
+
+  dims.forEach((d, i) => {
+    const card = document.getElementById('dim' + i);
+    const cls = d.score > 0 ? getColor(d.score, 25) : '';
+    card.className = 'dim-card ' + cls;
+
+    const scoreEl = document.getElementById('dimScore' + i);
+    const prev = parseInt(scoreEl.textContent) || 0;
+    animateCount(scoreEl, prev, d.score, 800);
+
+    setTimeout(() => {
+      document.getElementById('bar' + i).style.width = (d.score / 25 * 100) + '%';
+    }, 200 + i * 80);
+
+    const note = STATE.dimNotes[d.key];
+    document.getElementById('dimNote' + i).textContent = note || (d.score > 0 ? 'No specific issues flagged.' : 'Scan a repo to see results');
+  });
+}
+
+function renderFixes() {
+  const list = document.getElementById('fixList');
+  list.innerHTML = STATE.fixes.map((f, i) => `
+    <div class="fix-item${STATE.appliedFixes.has(i) ? ' applied' : ''}" onclick="toggleFix(${i})" data-fix="${i}">
+      <div class="fix-index">${String(f.rank).padStart(2, '0')}</div>
+      <div class="fix-body">
+        <div class="fix-title">${f.title}</div>
+        <div class="fix-file">${f.files}</div>
+      </div>
+      <div class="fix-points ${f.points >= 8 ? 'high' : 'med'}">+${f.points} pts</div>
+    </div>
+  `).join('');
+}
+
+function renderMemory() {
+  const list = document.getElementById('memoryList');
+  list.innerHTML = STATE.memory.map(m => `
+    <div class="memory-item">
+      <div class="memory-freq">${m.freq}</div>
+      <div class="memory-body">
+        <div class="memory-pattern">${m.pattern}</div>
+        <div class="memory-repos">${m.repos}</div>
+      </div>
+      <div class="memory-trend ${m.trend}">${m.delta}</div>
+    </div>
+  `).join('');
+}
+
+function renderSparkline() {
+  const el = document.getElementById('sparkline');
+  const max = Math.max(...STATE.history, 100);
+  el.innerHTML = STATE.history.map((v, i) => {
+    const h = Math.max(4, (v / max) * 24);
+    const color = v >= 75 ? 'var(--teal)' : v >= 50 ? 'var(--amber)' : 'var(--red)';
+    return `<div class="spark-bar" style="height:${h}px;background:${color};opacity:${0.4 + (i / STATE.history.length) * 0.6}"></div>`;
+  }).join('');
+}
+
+function renderGate() {
+  const panel = document.getElementById('gatePanel');
+  const icon = document.getElementById('gateIcon');
+  const title = document.getElementById('gateTitle');
+  const sub = document.getElementById('gateSub');
+  const thresh = document.getElementById('gateThreshold');
+  const s = STATE.score;
+
+  if (s >= GATE_THRESHOLD) {
+    panel.classList.add('cleared');
+    icon.className = 'gate-icon clear';
+    icon.innerHTML = '&#10003;';
+    title.className = 'gate-title cleared';
+    title.textContent = 'Submission tag cleared';
+    sub.textContent = `Score meets the 75-point threshold. Tagging a v*-submission release will proceed.`;
+    thresh.innerHTML = `Threshold: 75 / 100<br><span style="color:var(--teal);font-size:11px">Cleared by ${s - 75} points</span>`;
+  } else {
+    panel.classList.remove('cleared');
+    icon.className = 'gate-icon blocked';
+    icon.innerHTML = '&times;';
+    title.className = 'gate-title blocked';
+    title.textContent = 'Submission tag blocked';
+    const topFix = STATE.fixes[0];
+    sub.textContent = `Score ${s} is below the 75-point threshold.${topFix ? ` Claude\u2019s top fix recovers ${topFix.points} points.` : ''}`;
+    thresh.innerHTML = `Threshold: 75 / 100<br><span style="color:var(--red2);font-size:11px">&minus;${75 - s} points needed</span>`;
+  }
+}
+
+function renderBadge() {
+  const el = document.getElementById('badgeScore');
+  const code = document.getElementById('badgeCode');
+  const s = STATE.score;
+  el.textContent = s + ' / 100';
+  const bg = s >= 75 ? 'var(--teal)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
+  el.style.background = bg;
+  el.style.color = s >= 50 ? '#0a0d12' : '#fff';
+  code.textContent = `![SciGate](https://scigate.io/badge/${document.getElementById('repoName').textContent.trim()})`;
+}
+
+function renderAll() {
+  setGaugeValue(STATE.score);
+  renderDimensions();
+  renderFixes();
+  renderMemory();
+  renderSparkline();
+  renderGate();
+  renderBadge();
+}
+
+// ─── INTERACTIONS ────────────────────────────────────────────────────────────
+
+function toggleFix(i) {
+  if (STATE.appliedFixes.has(i)) {
+    STATE.appliedFixes.delete(i);
+  } else {
+    STATE.appliedFixes.add(i);
+  }
+  const el = document.querySelector(`[data-fix="${i}"]`);
+  el.classList.toggle('applied');
+
+  let recovered = 0;
+  STATE.appliedFixes.forEach(idx => { recovered += STATE.fixes[idx].points; });
+  const projected = Math.min(STATE.score + recovered, 100);
+
+  document.getElementById('fixBadge').textContent = recovered > 0
+    ? `+${recovered} pts if applied`
+    : 'ranked by ROI';
+}
+
+function scanStart() {
+  const btn = document.getElementById('scanBtn');
+  const headerBtn = document.querySelector('.header-actions .btn-primary');
+  const progress = document.getElementById('scanProgress');
+  const bar = document.getElementById('scanProgressBar');
+
+  btn.textContent = 'Scanning\u2026';
+  btn.disabled = true;
+  btn.classList.add('scanning');
+  if (headerBtn) { headerBtn.textContent = 'Scanning\u2026'; headerBtn.disabled = true; }
+  progress.classList.add('active');
+  bar.style.width = '0%';
+  STATE.appliedFixes = new Set();
+
+  [15, 35, 55, 75, 90].forEach((w, i) => {
+    setTimeout(() => { bar.style.width = w + '%'; }, 300 * (i + 1));
+  });
+}
+
+function scanEnd() {
+  const btn = document.getElementById('scanBtn');
+  const headerBtn = document.querySelector('.header-actions .btn-primary');
+  const progress = document.getElementById('scanProgress');
+  const bar = document.getElementById('scanProgressBar');
+
+  bar.style.width = '100%';
+  setTimeout(() => {
+    progress.classList.remove('active');
+    bar.style.width = '0%';
+  }, 300);
+
+  btn.textContent = 'Scan repo';
+  btn.disabled = false;
+  btn.classList.remove('scanning');
+  if (headerBtn) { headerBtn.textContent = 'Scan now'; headerBtn.disabled = false; }
+  STATE.scanning = false;
+}
+
+function applyResult(data) {
+  const s = data.scores || data.score || {};
+  STATE.score = Math.round(s.total || s.total_score || 0);
+  STATE.grade = data.grade || s.grade || getGrade(STATE.score).label;
+  STATE.domain = data.domain || s.field || STATE.domain;
+  STATE.scores = {
+    env:   s.env   ?? STATE.scores.env,
+    seeds: s.seeds ?? STATE.scores.seeds,
+    data:  s.data  ?? STATE.scores.data,
+    docs:  s.docs  ?? STATE.scores.docs,
+  };
+  if (data.fixes && data.fixes.length) {
+    STATE.fixes = data.fixes.map((f, i) => ({
+      rank: f.rank || i + 1,
+      title: f.title,
+      files: Array.isArray(f.files) ? f.files.join(', ') : (f.files || ''),
+      points: f.points_recoverable || f.points || 0,
+      dim: f.dimension || 'data',
+    }));
+  }
+
+  STATE.dimNotes = { env: '', seeds: '', data: '', docs: '' };
+  const dimKeys = ['env', 'seeds', 'data', 'docs'];
+  const dimMax = 25;
+  for (const key of dimKeys) {
+    const dimFixes = (data.fixes || []).filter(f => f.dimension === key);
+    if (dimFixes.length) {
+      STATE.dimNotes[key] = dimFixes.map(f => f.title).join('. ') + '.';
+    } else if (STATE.scores[key] >= dimMax) {
+      STATE.dimNotes[key] = 'Full score — no issues found.';
+    } else {
+      STATE.dimNotes[key] = 'No specific issues flagged.';
+    }
+  }
+
+  STATE.history.push(STATE.score);
+  if (STATE.history.length > 8) STATE.history.shift();
+
+  document.getElementById('domainTag').textContent = STATE.domain;
+  document.getElementById('commitDomain').textContent = STATE.domain;
+  document.getElementById('commitGrade').textContent = STATE.grade;
+  document.getElementById('commitGate').textContent = STATE.score >= 75 ? 'CLEAR' : 'BLOCKED';
+  document.getElementById('commitGate').style.color = STATE.score >= 75 ? 'var(--teal)' : 'var(--red)';
+  document.getElementById('commitTime').textContent = 'just now';
+  document.getElementById('commitMsg').textContent = STATE.score + '/100';
+
+  renderAll();
+}
+
+async function runScan() {
+  if (STATE.scanning) return;
+  STATE.scanning = true;
+  scanStart();
+
+  const raw = document.getElementById('repoInput').value.trim();
+
+  if (raw) {
+    const isLocal = raw.startsWith('/') || raw.startsWith('~') || raw.startsWith('.');
+    let gitlabProject = null;
+    let localPath = null;
+    let repoLabel = raw;
+
+    if (isLocal) {
+      localPath = raw;
+      const parts = raw.replace(/\/$/, '').split('/');
+      repoLabel = parts.slice(-2).join(' / ');
+    } else {
+      let cleaned = raw.replace(/^https?:\/\/(www\.)?gitlab\.com\//, '');
+      cleaned = cleaned.replace(/\.git$/, '').replace(/\/$/, '');
+      cleaned = cleaned.replace(/^\/+/, '');
+      gitlabProject = cleaned;
+      repoLabel = cleaned.replace(/\//g, ' / ');
+    }
+
+    try {
+      const body = localPath
+        ? { local_path: localPath }
+        : { gitlab_project: gitlabProject };
+
+      const resp = await fetch('/scan', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(body),
+      });
+      if (resp.ok) {
+        const data = await resp.json();
+        applyResult(data);
+        document.getElementById('heroTitle').textContent = repoLabel;
+        document.getElementById('repoName').textContent = gitlabProject || raw.replace(/\/$/, '').split('/').slice(-2).join('/');
+        const nFixes = (data.fixes || []).length;
+        const mode = gitlabProject ? 'remote' : 'local';
+        document.getElementById('heroDesc').innerHTML =
+          `<span style="font-family:var(--mono);color:var(--amber)">${data.domain || 'general'}</span> · ` +
+          `${mode} · ${nFixes} fix${nFixes !== 1 ? 'es' : ''} found · ${data.scan_duration_ms || '?'}ms`;
+        fetchMemory();
+        scanEnd();
+        return;
+      } else {
+        const err = await resp.json().catch(() => ({}));
+        document.getElementById('heroDesc').innerHTML =
+          `<span style="color:var(--red)">${err.detail || err.error || 'Scan failed'}</span>`;
+      }
+    } catch (e) {
+      document.getElementById('heroDesc').innerHTML =
+        `<span style="color:var(--red)">API not reachable. Using demo mode.</span>`;
+    }
+  }
+
+  setTimeout(() => {
+    const envScore = 12 + Math.floor(Math.random() * 14);
+    const seedScore = 8 + Math.floor(Math.random() * 18);
+    const dataScore = 3 + Math.floor(Math.random() * 20);
+    const docScore = 12 + Math.floor(Math.random() * 14);
+    const total = envScore + seedScore + dataScore + docScore;
+
+    const demoFixes = [
+      { rank: 1, title: 'No pinned environment file', dimension: 'env', points_recoverable: 25 - envScore, files: [] },
+      { rank: 2, title: 'Unseeded random calls detected', dimension: 'seeds', points_recoverable: 25 - seedScore, files: [] },
+      { rank: 3, title: 'No data download or preparation script', dimension: 'data', points_recoverable: 25 - dataScore, files: [] },
+      { rank: 4, title: 'Missing runtime estimates in README', dimension: 'docs', points_recoverable: 25 - docScore, files: [] },
+    ].filter(f => f.points_recoverable > 0);
+
+    document.getElementById('heroTitle').textContent = 'Demo scan';
+    document.getElementById('heroDesc').innerHTML = '<span style="color:var(--amber)">No repo path provided — showing demo data</span>';
+    applyResult({
+      domain: 'demo',
+      grade: getGrade(total).label,
+      scores: { env: envScore, seeds: seedScore, data: dataScore, docs: docScore, total: total },
+      fixes: demoFixes,
+    });
+    scanEnd();
+  }, 1800);
+}
+
+function copyBadge() {
+  const el = document.getElementById('badgeCode');
+  navigator.clipboard.writeText(el.textContent.trim()).catch(() => {});
+  const orig = el.textContent;
+  el.textContent = 'Copied to clipboard!';
+  el.classList.add('copied');
+  setTimeout(() => {
+    el.textContent = orig;
+    el.classList.remove('copied');
+  }, 1500);
+}
+
+function showHistory() {
+  const h = STATE.history;
+  const msg = h.map((s, i) => `  Scan ${i + 1}: ${s}/100`).join('\n');
+  alert('Score History\n\n' + msg);
+}
+
+// ─── LIVE MEMORY FETCH ───────────────────────────────────────────────────────
+
+async function fetchMemory() {
+  try {
+    const resp = await fetch('/leaderboard');
+    if (!resp.ok) return;
+    const data = await resp.json();
+    if (data.top_patterns && data.top_patterns.length) {
+      STATE.memory = data.top_patterns.map(p => ({
+        freq: p.count,
+        pattern: p.description,
+        repos: (p.repos || []).slice(0, 3).join(' · ') + (p.repos.length > 3 ? ` · ${p.repos.length - 3} others` : ''),
+        trend: 'up',
+        delta: `${p.repos.length} repo${p.repos.length !== 1 ? 's' : ''}`,
+      }));
+      renderMemory();
+    }
+    if (data.leaderboard && data.leaderboard.length) {
+      document.getElementById('memBadge').textContent = data.leaderboard.length + ' repos indexed';
+    }
+  } catch {}
+}
+
+// ─── INIT ────────────────────────────────────────────────────────────────────
+
+window.addEventListener('load', () => {
+  setTimeout(renderAll, 200);
+});
+
+document.getElementById('repoInput').addEventListener('keydown', (e) => {
+  if (e.key === 'Enter') runScan();
+});
+</script>
+</body>
+</html>

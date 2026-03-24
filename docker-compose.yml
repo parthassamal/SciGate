@@ -1,0 +1,19 @@
+services:
+  scigate:
+    build: .
+    ports:
+      - "8000:8000"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      - GITLAB_TOKEN=${GITLAB_TOKEN:-}
+      - GITLAB_URL=${GITLAB_URL:-https://gitlab.com}
+      - SCIGATE_THRESHOLD=${SCIGATE_THRESHOLD:-75}
+    volumes:
+      # Persist org memory across restarts
+      - scigate-memory:/app/memory
+      # Mount a local repo to scan it from inside the container
+      # Usage: docker compose run scigate python agents/audit_agent.py --path /repo --pretty
+      - ${SCAN_REPO_PATH:-.}:/repo:ro
+
+volumes:
+  scigate-memory:

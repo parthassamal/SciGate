@@ -1,0 +1,26 @@
+---
+description: SciGate architecture and coding conventions — applies to all Python files
+globs: "**/*.py"
+alwaysApply: false
+---
+
+# SciGate Conventions
+
+## Imports
+- All Claude calls through `scigate.utils.claude_client.ask_claude()`
+- All repo scanning through `scigate.utils.repo_scanner.scan_repo()`
+- Never import `anthropic` directly in agent files
+
+## Agent Pattern
+- Each agent function returns a typed dataclass (AuditReport, FixPlan, OrgMemory)
+- Findings always use `Finding(check_id=..., title=..., severity=..., description=...)`
+- Check IDs: prefix with domain (ML-, BIO-, CLI-, STAT-, DEP-, PATH-, DOC-, ENV-)
+
+## Scoring
+- Deductions by severity: CRITICAL=20, HIGH=12, MEDIUM=6, LOW=2
+- Field multipliers in `FIELD_MULTIPLIERS` dict in `scoring/engine.py`
+- Score range: 0-100, clamped
+
+## Error Handling
+- Claude failures should return a graceful default (GENERAL_SCIENCE, empty plan)
+- File read errors use `errors="replace"` — never crash on encoding issues

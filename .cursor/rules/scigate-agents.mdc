@@ -1,0 +1,30 @@
+---
+description: SciGate agent conventions — applies when editing agent files or GitLab flow
+globs: "{scigate/agents/**/*.py,gitlab/**/*.py,gitlab/**/*.yml}"
+alwaysApply: false
+---
+
+# SciGate Agent Rules
+
+## JSON Contract
+Agent 1 outputs: `{ domain, scores: {env, seeds, data, docs, total}, grade, fixes: [{rank, title, files, dimension, points_recoverable, claude_fix_hint}], gate_blocked, gate_threshold }`
+
+## Fix Generation
+- `build_skill_context(domain, fix)` constructs Claude system prompt per-fix
+- Always strip markdown fences from Claude response before JSON.parse
+- Safety filter: never write to files matching train/model/loss/network/arch/backbone/head/encoder/decoder
+
+## Seed Templates
+- ML: torch.manual_seed + cuda.manual_seed_all + cudnn.deterministic
+- Bio: set.seed(42) in R
+- General: random.seed + np.random.seed
+
+## Path Fixes
+Replace `/home/...` or `/mnt/...` with:
+`os.path.join(os.path.dirname(os.path.abspath(__file__)), '..', 'data', filename)`
+
+## GitLab Flow
+- Agent models: Sonnet for audit/fix, Haiku for memory (fast + cheap)
+- Timeouts: audit 120-180s, fix 300s, memory 60s
+- MR branch naming: `scigate/fix-{sha[:8]}`
+- Always open MR as draft with labels: scigate, reproducibility

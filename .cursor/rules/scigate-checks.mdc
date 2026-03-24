@@ -1,0 +1,36 @@
+---
+description: Rules for adding new reproducibility checks to the audit agent
+globs: "scigate/agents/audit.py"
+alwaysApply: false
+---
+
+# Adding Reproducibility Checks
+
+## Check ID Prefixes
+- `DEP-` dependency management
+- `PATH-` filesystem path issues
+- `DOC-` documentation
+- `ENV-` environment / containerization
+- `ML-` machine learning specific
+- `BIO-` bioinformatics / genomics
+- `CLI-` climate model specific
+- `STAT-` statistics / data analysis
+- `MEM-` org memory pattern match
+
+## Required Pattern
+```python
+findings.append(Finding(
+    check_id="XX-NNN",
+    title="Short descriptive title",
+    severity=Severity.CRITICAL,  # or HIGH, MEDIUM, LOW, INFO
+    description="Why this matters for reproducibility.",
+    file_path=path_if_applicable,
+    line_number=line_if_applicable,
+    suggestion="Concrete fix instruction.",
+))
+```
+
+## After Adding a Check
+1. Add field multiplier in `scoring/engine.py` if domain-critical
+2. Add inverse bonus in `_compute_bonuses()` if good practice
+3. Update check ID table in `.claude/SKILL.md`

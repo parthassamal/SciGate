@@ -1,0 +1,31 @@
+[build-system]
+requires = ["setuptools>=68.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "scigate"
+version = "0.1.0"
+description = "Reproducibility Credit Score for scientific codebases — like FICO for science"
+readme = "README.md"
+requires-python = ">=3.10"
+license = {text = "MIT"}
+authors = [{name = "SciGate Team"}]
+
+dependencies = [
+    "anthropic>=0.39.0",
+    "click>=8.1.0",
+    "pyyaml>=6.0",
+    "rich>=13.0",
+    "toml>=0.10.2",
+    "gitpython>=3.1.0",
+    "pathspec>=0.12.0",
+    "jinja2>=3.1.0",
+    "aiohttp>=3.9.0",
+    "aiofiles>=23.0",
+]
+
+[project.scripts]
+scigate = "scigate.cli:main"
+
+[tool.setuptools.packages.find]
+include = ["scigate*"]

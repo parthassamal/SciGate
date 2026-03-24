@@ -1,0 +1,22 @@
+---
+description: SciGate scoring rubric rules — applies when editing scoring engine or badge files
+globs: "scigate/scoring/**/*.py"
+alwaysApply: false
+---
+
+# Scoring Rules
+
+## Score Calculation
+- Base = 100, subtract per finding using SEVERITY_DEDUCTIONS
+- Multiply by field-specific multiplier if check_id prefix matches
+- Add bonuses for good practices (absence of common findings)
+- Clamp final to [0, 100]
+
+## Grade Thresholds
+A+ ≥ 90 (brightgreen), A ≥ 80 (green), B ≥ 70 (yellowgreen),
+C ≥ 60 (yellow), D ≥ 45 (orange), F < 45 (red)
+
+## Badge
+- shields.io URL with for-the-badge style
+- Markdown and HTML embeds available
+- score_summary_markdown() generates full report with table
