@@ -3,15 +3,14 @@ SciGate — Agent 2: Fix Generator
 ---------------------------------
 Reads the audit score object from Agent 1, calls the Anthropic API (Claude)
 to generate targeted reproducibility fixes, writes the patched files, and
-opens a draft MR via the GitLab API.
+opens a draft PR via the GitHub API.
 
-Usage (called by GitLab Duo Flow, or directly):
-    python fix_agent.py --score-json score.json --project-id 1234
+Usage:
+    python fix_agent.py --score-json score.json --repo owner/repo
 
 Environment variables required:
     ANTHROPIC_API_KEY   - Anthropic API key
-    GITLAB_TOKEN        - GitLab personal/project access token
-    GITLAB_URL          - e.g. https://gitlab.com
+    GITHUB_TOKEN        - GitHub personal access token
 """
 
 import os
@@ -113,7 +112,7 @@ def get_anthropic_client() -> anthropic.Anthropic:
     if not api_key:
         raise EnvironmentError(
             "ANTHROPIC_API_KEY is not set. "
-            "Add it as a masked GitLab CI variable."
+            "Add it as a repository secret in GitHub Actions."
         )
     return anthropic.Anthropic(api_key=api_key)
 
@@ -228,65 +227,107 @@ def is_protected(path: str) -> bool:
     return any(p in lower for p in PROTECTED_PATTERNS)
 
 
-# ── GITLAB API ────────────────────────────────────────────────────────────────
+# ── GITHUB API ────────────────────────────────────────────────────────────────
 
-class GitLabClient:
-    def __init__(self, project_id: str):
-        self.base = os.environ.get("GITLAB_URL", "https://gitlab.com").rstrip("/")
-        self.token = os.environ.get("GITLAB_TOKEN", "")
-        self.project_id = project_id
+class GitHubClient:
+    def __init__(self, repo: str):
+        self.base = os.environ.get(
+            "GITHUB_API_URL", "https://api.github.com"
+        ).rstrip("/")
+        self.token = os.environ.get("GITHUB_TOKEN", "")
+        self.repo = repo
         self.headers = {
-            "PRIVATE-TOKEN": self.token,
-            "Content-Type": "application/json",
+            "Accept": "application/vnd.github+json",
+            "X-GitHub-Api-Version": "2022-11-28",
         }
+        if self.token:
+            self.headers["Authorization"] = f"Bearer {self.token}"
         self._client = httpx.Client(headers=self.headers, timeout=30)
 
     def _url(self, path: str) -> str:
-        return f"{self.base}/api/v4/projects/{self.project_id}/{path}"
+        return f"{self.base}/repos/{self.repo}/{path}"
 
     def get_file(self, path: str, ref: str = "main") -> str | None:
         import base64
         r = self._client.get(
-            self._url(f"repository/files/{path.replace('/', '%2F')}"),
+            self._url(f"contents/{path}"),
             params={"ref": ref},
         )
         if r.status_code == 404:
             return None
         r.raise_for_status()
-        return base64.b64decode(r.json()["content"]).decode()
+        data = r.json()
+        if data.get("encoding") == "base64":
+            return base64.b64decode(data["content"]).decode()
+        return data.get("content", "")
+
+    def _get_ref_sha(self, ref: str = "main") -> str:
+        r = self._client.get(self._url(f"git/ref/heads/{ref}"))
+        r.raise_for_status()
+        return r.json()["object"]["sha"]
 
     def create_branch(self, branch: str, ref: str = "main") -> None:
+        sha = self._get_ref_sha(ref)
         self._client.post(
-            self._url("repository/branches"),
-            json={"branch": branch, "ref": ref},
+            self._url("git/refs"),
+            json={"ref": f"refs/heads/{branch}", "sha": sha},
         ).raise_for_status()
 
     def commit_files(
         self, branch: str, message: str,
         actions: list[dict[str, str]],
     ) -> None:
-        self._client.post(
-            self._url("repository/commits"),
+        import base64 as b64
+        branch_sha = self._get_ref_sha(branch)
+
+        r = self._client.get(self._url(f"git/commits/{branch_sha}"))
+        r.raise_for_status()
+        base_tree_sha = r.json()["tree"]["sha"]
+
+        tree_items = []
+        for action in actions:
+            tree_items.append({
+                "path": action["file_path"],
+                "mode": "100644",
+                "type": "blob",
+                "content": action["content"],
+            })
+
+        r = self._client.post(
+            self._url("git/trees"),
+            json={"base_tree": base_tree_sha, "tree": tree_items},
+        )
+        r.raise_for_status()
+        new_tree_sha = r.json()["sha"]
+
+        r = self._client.post(
+            self._url("git/commits"),
             json={
-                "branch": branch,
-                "commit_message": message,
-                "actions": actions,
+                "message": message,
+                "tree": new_tree_sha,
+                "parents": [branch_sha],
             },
+        )
+        r.raise_for_status()
+        new_commit_sha = r.json()["sha"]
+
+        self._client.patch(
+            self._url(f"git/refs/heads/{branch}"),
+            json={"sha": new_commit_sha},
         ).raise_for_status()
 
-    def create_mr(
-        self, source_branch: str, title: str, description: str,
+    def create_pr(
+        self, head_branch: str, title: str, description: str,
+        base_branch: str = "main",
     ) -> dict[str, Any]:
         r = self._client.post(
-            self._url("merge_requests"),
+            self._url("pulls"),
             json={
-                "source_branch": source_branch,
-                "target_branch": "main",
+                "head": head_branch,
+                "base": base_branch,
                 "title": title,
-                "description": description,
-                "labels": "scigate,reproducibility",
+                "body": description,
                 "draft": True,
-                "remove_source_branch": True,
             },
         )
         r.raise_for_status()
@@ -295,9 +336,9 @@ class GitLabClient:
 
 # ── MAIN PIPELINE ─────────────────────────────────────────────────────────────
 
-def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
+def run(score_json: dict[str, Any], repo: str) -> dict[str, Any]:
     client = get_anthropic_client()
-    gitlab = GitLabClient(project_id)
+    github = GitHubClient(repo)
     domain = score_json["domain"]
     fixes = score_json["fixes"]
     sha = score_json["commit_sha"]
@@ -307,15 +348,16 @@ def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
     print(f"[SciGate Agent 2] Processing {len(fixes)} fixes...")
 
     all_file_actions: list[dict[str, str]] = []
-    mr_notes: list[str] = []
+    pr_notes: list[str] = []
     total_points_projected = score_before
 
     for fix in fixes:
         print(f"  -> Fix {fix['rank']}: {fix['title']} (+{fix['points_recoverable']} pts)")
 
         file_contents: dict[str, str] = {}
+        fetch_ref = sha if sha and sha != "unknown" else "main"
         for path in fix["files"]:
-            content = gitlab.get_file(path, ref=sha)
+            content = github.get_file(path, ref=fetch_ref)
             if content:
                 file_contents[path] = content
 
@@ -339,7 +381,7 @@ def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
             })
             print(f"    + Staged {action}: {path}")
 
-        mr_notes.append(f"- {fix_result.get('mr_note', fix['title'])}")
+        pr_notes.append(f"- {fix_result.get('mr_note', fix['title'])}")
         total_points_projected += fix_result.get("points_recovered", 0)
         time.sleep(0.5)
 
@@ -351,16 +393,16 @@ def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
     score_projected = min(total_points_projected, 100)
 
     print(f"\n[SciGate Agent 2] Creating branch: {branch}")
-    gitlab.create_branch(branch, ref=sha)
+    github.create_branch(branch, ref="main")
 
     commit_message = (
         f"SciGate: +{score_projected - score_before} pts reproducibility fixes\n\n"
-        + "\n".join(mr_notes)
+        + "\n".join(pr_notes)
     )
-    gitlab.commit_files(branch, commit_message, all_file_actions)
+    github.commit_files(branch, commit_message, all_file_actions)
 
     gate_cleared = score_projected >= GATE_THRESHOLD
-    mr_description = textwrap.dedent(f"""
+    pr_description = textwrap.dedent(f"""
         ## SciGate automated reproducibility fixes
 
         | | Before | Projected |
@@ -369,31 +411,31 @@ def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
         | Gate status | {'🟢 Clear' if score_before >= GATE_THRESHOLD else '🔴 Blocked'} | {'✅ Projected score clears threshold.' if gate_cleared else f'⚠️ Still below threshold ({score_projected} < {GATE_THRESHOLD}).'} |
 
         ### Changes applied
-        {chr(10).join(mr_notes)}
+        {chr(10).join(pr_notes)}
 
         ### What was NOT changed
         All experiment logic, model architecture, training code, and loss functions
-        are completely untouched. This MR only adds reproducibility infrastructure.
+        are completely untouched. This PR only adds reproducibility infrastructure.
 
         ---
         _Generated by [SciGate](https://scigate.io) · Powered by Claude {ANTHROPIC_MODEL}_
         _Commit: `{sha}` · Domain: `{domain}`_
     """).strip()
 
-    mr = gitlab.create_mr(
-        source_branch=branch,
+    pr = github.create_pr(
+        head_branch=branch,
         title=f"SciGate: +{score_projected - score_before} pts — "
               f"{len(all_file_actions)} files updated",
-        description=mr_description,
+        description=pr_description,
     )
 
-    print(f"\n[SciGate Agent 2] MR created: {mr.get('web_url', 'unknown')}")
+    print(f"\n[SciGate Agent 2] PR created: {pr.get('html_url', 'unknown')}")
     print(f"[SciGate Agent 2] Score: {score_before} -> {score_projected} (projected)")
 
     return {
-        "status": "mr_created",
-        "mr_url": mr.get("web_url"),
-        "mr_iid": mr.get("iid"),
+        "status": "pr_created",
+        "pr_url": pr.get("html_url"),
+        "pr_number": pr.get("number"),
         "branch": branch,
         "score_before": score_before,
         "score_projected": score_projected,
@@ -406,12 +448,12 @@ def run(score_json: dict[str, Any], project_id: str) -> dict[str, Any]:
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SciGate Agent 2 — Fix generator")
     parser.add_argument("--score-json", required=True, help="Path to Agent 1 score output JSON")
-    parser.add_argument("--project-id", required=True, help="GitLab project ID")
+    parser.add_argument("--repo", required=True, help="GitHub repo (owner/repo)")
     args = parser.parse_args()
 
     with open(args.score_json) as f:
         score = json.load(f)
 
-    result = run(score, args.project_id)
+    result = run(score, args.repo)
     print("\n-- Result --")
     print(json.dumps(result, indent=2))

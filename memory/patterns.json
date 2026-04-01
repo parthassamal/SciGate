@@ -1,0 +1,185 @@
+{
+  "bc3ae61c3d1e": {
+    "id": "bc3ae61c3d1e",
+    "description": "Hardcoded absolute paths in 2 file(s)",
+    "dimension": "data",
+    "count": 7,
+    "repos": [
+      "SciGate"
+    ],
+    "alert": true,
+    "first_seen": "2026-04-01T14:27:19.887079+00:00",
+    "last_seen": "2026-04-01T16:58:34.887278+00:00"
+  },
+  "98df32c6726d": {
+    "id": "98df32c6726d",
+    "description": "10 unpinned dependencies in requirements.txt",
+    "dimension": "env",
+    "count": 7,
+    "repos": [
+      "SciGate"
+    ],
+    "alert": true,
+    "first_seen": "2026-04-01T14:27:19.887091+00:00",
+    "last_seen": "2026-04-01T16:58:34.887287+00:00"
+  },
+  "02a7f50f7ce7": {
+    "id": "02a7f50f7ce7",
+    "description": "2 raw data file(s) committed to repo",
+    "dimension": "data",
+    "count": 1,
+    "repos": [
+      "SciGate"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T14:27:19.887098+00:00",
+    "last_seen": "2026-04-01T14:27:19.887100+00:00"
+  },
+  "820066a35241": {
+    "id": "820066a35241",
+    "description": "4 raw data file(s) committed to repo",
+    "dimension": "data",
+    "count": 6,
+    "repos": [
+      "SciGate"
+    ],
+    "alert": true,
+    "first_seen": "2026-04-01T14:46:14.736686+00:00",
+    "last_seen": "2026-04-01T16:58:34.887291+00:00"
+  },
+  "bd4528da76e4": {
+    "id": "bd4528da76e4",
+    "description": "No data download or preparation script found",
+    "dimension": "data",
+    "count": 2,
+    "repos": [
+      "pallets/flask",
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T15:10:31.408691+00:00",
+    "last_seen": "2026-04-01T16:49:47.939876+00:00"
+  },
+  "8fb187dadb91": {
+    "id": "8fb187dadb91",
+    "description": "1 raw data file(s) committed to repo",
+    "dimension": "data",
+    "count": 1,
+    "repos": [
+      "pallets/flask"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T15:10:31.408710+00:00",
+    "last_seen": "2026-04-01T15:10:31.408717+00:00"
+  },
+  "80f662c107cd": {
+    "id": "80f662c107cd",
+    "description": "README missing paper citation or reference",
+    "dimension": "docs",
+    "count": 6,
+    "repos": [
+      "pallets/flask",
+      "SciGate",
+      "octocat/Hello-World"
+    ],
+    "alert": true,
+    "first_seen": "2026-04-01T15:10:31.408722+00:00",
+    "last_seen": "2026-04-01T16:58:34.887297+00:00"
+  },
+  "314e5f97c1ca": {
+    "id": "314e5f97c1ca",
+    "description": "Low test coverage: 30 test files vs 2351 source files",
+    "dimension": "testing",
+    "count": 4,
+    "repos": [
+      "SciGate"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T15:33:30.541953+00:00",
+    "last_seen": "2026-04-01T16:58:34.887294+00:00"
+  },
+  "a20f06824c7f": {
+    "id": "a20f06824c7f",
+    "description": "No environment file found",
+    "dimension": "env",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939839+00:00",
+    "last_seen": "2026-04-01T16:49:47.939849+00:00"
+  },
+  "ce34081349d2": {
+    "id": "ce34081349d2",
+    "description": "No LICENSE file found",
+    "dimension": "compliance",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939856+00:00",
+    "last_seen": "2026-04-01T16:49:47.939861+00:00"
+  },
+  "bfaf6aa3dee1": {
+    "id": "bfaf6aa3dee1",
+    "description": "No test suite found",
+    "dimension": "testing",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939867+00:00",
+    "last_seen": "2026-04-01T16:49:47.939871+00:00"
+  },
+  "0929b584b449": {
+    "id": "0929b584b449",
+    "description": "README missing step-by-step run instructions",
+    "dimension": "docs",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939880+00:00",
+    "last_seen": "2026-04-01T16:49:47.939884+00:00"
+  },
+  "23b8b315c475": {
+    "id": "23b8b315c475",
+    "description": "README missing hardware requirements",
+    "dimension": "docs",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939888+00:00",
+    "last_seen": "2026-04-01T16:49:47.939891+00:00"
+  },
+  "3783fd257b51": {
+    "id": "3783fd257b51",
+    "description": "README missing estimated runtime",
+    "dimension": "docs",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939894+00:00",
+    "last_seen": "2026-04-01T16:49:47.939898+00:00"
+  },
+  "a8da1e5a2753": {
+    "id": "a8da1e5a2753",
+    "description": "README missing expected outputs or results",
+    "dimension": "docs",
+    "count": 1,
+    "repos": [
+      "octocat/Hello-World"
+    ],
+    "alert": false,
+    "first_seen": "2026-04-01T16:49:47.939901+00:00",
+    "last_seen": "2026-04-01T16:49:47.939905+00:00"
+  }
+}

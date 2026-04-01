@@ -1,19 +1,71 @@
 services:
+  # ─── SciGate API + Dashboard ──────────────────────────────────────────
   scigate:
     build: .
     ports:
       - "8000:8000"
+    depends_on:
+      - redis
     environment:
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
-      - GITLAB_TOKEN=${GITLAB_TOKEN:-}
-      - GITLAB_URL=${GITLAB_URL:-https://gitlab.com}
+      - GITHUB_TOKEN=${GITHUB_TOKEN:-}
+      - VCS_PROVIDER=${VCS_PROVIDER:-github}
+      - CI_PROVIDER=${CI_PROVIDER:-jenkins}
+      - JENKINS_URL=${JENKINS_URL:-}
+      - JENKINS_USER=${JENKINS_USER:-}
+      - JENKINS_TOKEN=${JENKINS_TOKEN:-}
+      - WOODPECKER_URL=${WOODPECKER_URL:-}
+      - WOODPECKER_TOKEN=${WOODPECKER_TOKEN:-}
+      - GITEA_URL=${GITEA_URL:-}
+      - GITEA_TOKEN=${GITEA_TOKEN:-}
       - SCIGATE_THRESHOLD=${SCIGATE_THRESHOLD:-75}
+      - SCIGATE_NOTIFY_CHANNELS=${SCIGATE_NOTIFY_CHANNELS:-}
+      - SCIGATE_DASHBOARD_URL=${SCIGATE_DASHBOARD_URL:-http://localhost:8000}
+      - MATTERMOST_WEBHOOK_URL=${MATTERMOST_WEBHOOK_URL:-}
+      - NTFY_URL=${NTFY_URL:-https://ntfy.sh}
+      - NTFY_TOPIC=${NTFY_TOPIC:-scigate}
+      - GITHUB_WEBHOOK_SECRET=${GITHUB_WEBHOOK_SECRET:-}
+      - REDIS_URL=redis://redis:6379/0
     volumes:
-      # Persist org memory across restarts
       - scigate-memory:/app/memory
-      # Mount a local repo to scan it from inside the container
-      # Usage: docker compose run scigate python agents/audit_agent.py --path /repo --pretty
       - ${SCAN_REPO_PATH:-.}:/repo:ro
+
+  # ─── Redis (queue broker + cache) ────────────────────────────────────
+  redis:
+    image: redis:7-alpine
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis-data:/data
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 3s
+      retries: 3
+
+  # ─── Prometheus (metrics) ────────────────────────────────────────────
+  prometheus:
+    image: prom/prometheus:latest
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infra/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus-data:/prometheus
+    profiles: ["observability"]
+
+  # ─── Grafana (dashboards) ────────────────────────────────────────────
+  grafana:
+    image: grafana/grafana-oss:latest
+    ports:
+      - "3000:3000"
+    environment:
+      - GF_SECURITY_ADMIN_PASSWORD=${GRAFANA_PASSWORD:-scigate}
+    volumes:
+      - grafana-data:/var/lib/grafana
+    profiles: ["observability"]
 
 volumes:
   scigate-memory:
+  redis-data:
+  prometheus-data:
+  grafana-data:

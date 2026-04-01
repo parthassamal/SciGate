@@ -292,7 +292,7 @@ header {
 }
 .dimensions-grid {
   display: grid;
-  grid-template-columns: repeat(4, 1fr);
+  grid-template-columns: repeat(3, 1fr);
   gap: 12px;
   margin-bottom: 28px;
 }
@@ -377,6 +377,72 @@ header {
   grid-template-columns: 1fr 360px;
   gap: 16px;
   margin-bottom: 24px;
+}
+
+/* ─── THREE COLUMN LAYOUT (Trackers) ─── */
+.three-col {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 16px;
+  margin-bottom: 24px;
+}
+.tracker-panel { min-height: 180px; }
+.tracker-list { max-height: 320px; overflow-y: auto; }
+.tracker-empty {
+  padding: 24px 16px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+}
+.tracker-item {
+  display: flex;
+  gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+  align-items: flex-start;
+}
+.tracker-item:last-child { border-bottom: none; }
+.tracker-icon {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-top: 1px;
+}
+.tracker-icon.pr { background: rgba(139,92,246,0.12); color: #a78bfa; }
+.tracker-icon.commit { background: rgba(0,201,167,0.10); color: var(--teal); }
+.tracker-icon.dep-ok { background: rgba(0,201,167,0.10); color: var(--teal); }
+.tracker-icon.dep-warn { background: rgba(245,166,35,0.12); color: var(--amber); }
+.tracker-icon.dep-bad { background: rgba(255,94,94,0.10); color: var(--red); }
+.tracker-icon.jenkins-ok { background: rgba(0,201,167,0.10); color: var(--teal); }
+.tracker-icon.jenkins-fail { background: rgba(255,94,94,0.10); color: var(--red); }
+.tracker-icon.jenkins-run { background: rgba(245,166,35,0.12); color: var(--amber); }
+.tracker-body { flex: 1; min-width: 0; }
+.tracker-title {
+  font-weight: 500;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+.tracker-meta {
+  color: var(--text3);
+  font-size: 11px;
+  margin-top: 2px;
+}
+.dep-bar-track {
+  height: 4px;
+  background: var(--bg4);
+  border-radius: 2px;
+  margin-top: 8px;
+  overflow: hidden;
+}
+.dep-bar-fill {
+  height: 100%;
+  border-radius: 2px;
+  transition: width 0.6s ease;
 }
 
 /* ─── PANELS ─── */
@@ -708,6 +774,7 @@ header {
 .hero-band      { animation: fadeInUp 0.5s ease both; }
 .dimensions-grid { animation: fadeInUp 0.5s ease 0.1s both; }
 .two-col        { animation: fadeInUp 0.5s ease 0.2s both; }
+.three-col      { animation: fadeInUp 0.5s ease 0.25s both; }
 .gate-panel     { animation: fadeInUp 0.5s ease 0.3s both; }
 .badge-panel    { animation: fadeInUp 0.5s ease 0.35s both; }
 
@@ -727,6 +794,7 @@ header {
 @media (max-width: 900px) {
   .dimensions-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }
+  .three-col { grid-template-columns: 1fr; }
   .hero-band { grid-template-columns: 1fr; text-align: center; }
   .score-gauge { margin: 0 auto; }
 }
@@ -748,7 +816,7 @@ header {
     </div>
     <div class="header-actions">
       <button class="btn" onclick="showHistory()">History</button>
-      <button class="btn btn-primary" onclick="runScan()">Scan now</button>
+      <button class="btn btn-primary" onclick="runScan()">Scan repo</button>
     </div>
   </div>
 </div>
@@ -765,7 +833,7 @@ header {
       <h2 id="heroTitle">Enter a repo path below</h2>
       <p id="heroDesc">Paste a local directory path and hit <strong>Scan repo</strong> to get a live reproducibility score.</p>
       <div class="repo-input-wrap">
-        <input class="repo-input" placeholder="GitLab project (e.g. inkscape/inkscape) or local path" id="repoInput">
+        <input class="repo-input" placeholder="GitHub repo, branch URL, or local path (e.g. owner/repo/tree/my-branch)" id="repoInput">
         <button class="btn btn-primary" onclick="runScan()" id="scanBtn">Scan repo</button>
       </div>
       <div class="scan-progress" id="scanProgress">
@@ -813,7 +881,7 @@ header {
       <div class="dim-label">Environment</div>
       <div class="dim-score-row">
         <div class="dim-score" id="dimScore0">0</div>
-        <div class="dim-max">/ 25</div>
+        <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar0"></div></div>
       <div class="dim-note" id="dimNote0">Scan a repo to see results</div>
@@ -822,7 +890,7 @@ header {
       <div class="dim-label">Random seeds</div>
       <div class="dim-score-row">
         <div class="dim-score" id="dimScore1">0</div>
-        <div class="dim-max">/ 25</div>
+        <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar1"></div></div>
       <div class="dim-note" id="dimNote1">Scan a repo to see results</div>
@@ -831,7 +899,7 @@ header {
       <div class="dim-label">Data provenance</div>
       <div class="dim-score-row">
         <div class="dim-score" id="dimScore2">0</div>
-        <div class="dim-max">/ 25</div>
+        <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar2"></div></div>
       <div class="dim-note" id="dimNote2">Scan a repo to see results</div>
@@ -840,10 +908,28 @@ header {
       <div class="dim-label">Documentation</div>
       <div class="dim-score-row">
         <div class="dim-score" id="dimScore3">0</div>
-        <div class="dim-max">/ 25</div>
+        <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar3"></div></div>
       <div class="dim-note" id="dimNote3">Scan a repo to see results</div>
+    </div>
+    <div class="dim-card" id="dim4">
+      <div class="dim-label">Testing</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore4">0</div>
+        <div class="dim-max">/ 17</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar4"></div></div>
+      <div class="dim-note" id="dimNote4">Scan a repo to see results</div>
+    </div>
+    <div class="dim-card" id="dim5">
+      <div class="dim-label">Compliance</div>
+      <div class="dim-score-row">
+        <div class="dim-score" id="dimScore5">0</div>
+        <div class="dim-max">/ 15</div>
+      </div>
+      <div class="dim-bar-track"><div class="dim-bar-fill" id="bar5"></div></div>
+      <div class="dim-note" id="dimNote5">Scan a repo to see results</div>
     </div>
   </div>
 
@@ -866,6 +952,44 @@ header {
         <div class="panel-badge" id="memBadge">scan to populate</div>
       </div>
       <div id="memoryList"></div>
+    </div>
+
+  </div>
+
+  <!-- ACTIVITY / DEPS / JENKINS -->
+  <div class="three-col">
+
+    <!-- ACTIVITY FEED -->
+    <div class="panel tracker-panel">
+      <div class="panel-header">
+        <div class="panel-title">Activity feed</div>
+        <div class="panel-badge" id="activityBadge">PRs &amp; commits</div>
+      </div>
+      <div id="activityList" class="tracker-list">
+        <div class="tracker-empty">Scan a GitHub repo to see activity</div>
+      </div>
+    </div>
+
+    <!-- DEPENDENCY HEALTH -->
+    <div class="panel tracker-panel">
+      <div class="panel-header">
+        <div class="panel-title">Dependency health</div>
+        <div class="panel-badge" id="depsBadge">—</div>
+      </div>
+      <div id="depsList" class="tracker-list">
+        <div class="tracker-empty">Scan a repo to validate dependencies</div>
+      </div>
+    </div>
+
+    <!-- JENKINS STATUS -->
+    <div class="panel tracker-panel">
+      <div class="panel-header">
+        <div class="panel-title">Jenkins</div>
+        <div class="panel-badge" id="jenkinsBadge">not configured</div>
+      </div>
+      <div id="jenkinsList" class="tracker-list">
+        <div class="tracker-empty">Set JENKINS_URL to enable</div>
+      </div>
     </div>
 
   </div>
@@ -905,6 +1029,14 @@ header {
 </div>
 
 <script>
+// ─── UTILS ───────────────────────────────────────────────────────────────────
+
+function esc(s) {
+  const d = document.createElement('div');
+  d.textContent = s || '';
+  return d.innerHTML;
+}
+
 // ─── STATE ───────────────────────────────────────────────────────────────────
 
 const STATE = {
@@ -914,7 +1046,7 @@ const STATE = {
   grade: '—',
   history: [],
   fixes: [],
-  dimNotes: { env: '', seeds: '', data: '', docs: '' },
+  dimNotes: { env: '', seeds: '', data: '', docs: '', testing: '', compliance: '' },
   memory: [],
   appliedFixes: new Set(),
   scanning: false,
@@ -982,15 +1114,17 @@ function setGaugeValue(score) {
 
 function renderDimensions() {
   const dims = [
-    { key: 'env', label: 'Environment', score: STATE.scores.env },
-    { key: 'seeds', label: 'Random seeds', score: STATE.scores.seeds },
-    { key: 'data', label: 'Data provenance', score: STATE.scores.data },
-    { key: 'docs', label: 'Documentation', score: STATE.scores.docs },
+    { key: 'env', label: 'Environment', score: STATE.scores.env, max: 17 },
+    { key: 'seeds', label: 'Random seeds', score: STATE.scores.seeds, max: 17 },
+    { key: 'data', label: 'Data provenance', score: STATE.scores.data, max: 17 },
+    { key: 'docs', label: 'Documentation', score: STATE.scores.docs, max: 17 },
+    { key: 'testing', label: 'Testing', score: STATE.scores.testing || 0, max: 17 },
+    { key: 'compliance', label: 'Compliance', score: STATE.scores.compliance || 0, max: 15 },
   ];
 
   dims.forEach((d, i) => {
     const card = document.getElementById('dim' + i);
-    const cls = d.score > 0 ? getColor(d.score, 25) : '';
+    const cls = d.score > 0 ? getColor(d.score, d.max) : '';
     card.className = 'dim-card ' + cls;
 
     const scoreEl = document.getElementById('dimScore' + i);
@@ -998,7 +1132,7 @@ function renderDimensions() {
     animateCount(scoreEl, prev, d.score, 800);
 
     setTimeout(() => {
-      document.getElementById('bar' + i).style.width = (d.score / 25 * 100) + '%';
+      document.getElementById('bar' + i).style.width = (d.score / d.max * 100) + '%';
     }, 200 + i * 80);
 
     const note = STATE.dimNotes[d.key];
@@ -1012,8 +1146,8 @@ function renderFixes() {
     <div class="fix-item${STATE.appliedFixes.has(i) ? ' applied' : ''}" onclick="toggleFix(${i})" data-fix="${i}">
       <div class="fix-index">${String(f.rank).padStart(2, '0')}</div>
       <div class="fix-body">
-        <div class="fix-title">${f.title}</div>
-        <div class="fix-file">${f.files}</div>
+        <div class="fix-title">${esc(f.title)}</div>
+        <div class="fix-file">${esc(f.files)}</div>
       </div>
       <div class="fix-points ${f.points >= 8 ? 'high' : 'med'}">+${f.points} pts</div>
     </div>
@@ -1024,12 +1158,12 @@ function renderMemory() {
   const list = document.getElementById('memoryList');
   list.innerHTML = STATE.memory.map(m => `
     <div class="memory-item">
-      <div class="memory-freq">${m.freq}</div>
+      <div class="memory-freq">${esc(String(m.freq))}</div>
       <div class="memory-body">
-        <div class="memory-pattern">${m.pattern}</div>
-        <div class="memory-repos">${m.repos}</div>
+        <div class="memory-pattern">${esc(m.pattern)}</div>
+        <div class="memory-repos">${esc(m.repos)}</div>
       </div>
-      <div class="memory-trend ${m.trend}">${m.delta}</div>
+      <div class="memory-trend ${esc(m.trend)}">${esc(m.delta)}</div>
     </div>
   `).join('');
 }
@@ -1149,7 +1283,7 @@ function scanEnd() {
   btn.textContent = 'Scan repo';
   btn.disabled = false;
   btn.classList.remove('scanning');
-  if (headerBtn) { headerBtn.textContent = 'Scan now'; headerBtn.disabled = false; }
+  if (headerBtn) { headerBtn.textContent = 'Scan repo'; headerBtn.disabled = false; }
   STATE.scanning = false;
 }
 
@@ -1174,14 +1308,14 @@ function applyResult(data) {
     }));
   }
 
-  STATE.dimNotes = { env: '', seeds: '', data: '', docs: '' };
-  const dimKeys = ['env', 'seeds', 'data', 'docs'];
-  const dimMax = 25;
+  STATE.dimNotes = { env: '', seeds: '', data: '', docs: '', testing: '', compliance: '' };
+  const dimKeys = ['env', 'seeds', 'data', 'docs', 'testing', 'compliance'];
+  const dimMaxMap = { env: 17, seeds: 17, data: 17, docs: 17, testing: 17, compliance: 15 };
   for (const key of dimKeys) {
     const dimFixes = (data.fixes || []).filter(f => f.dimension === key);
     if (dimFixes.length) {
       STATE.dimNotes[key] = dimFixes.map(f => f.title).join('. ') + '.';
-    } else if (STATE.scores[key] >= dimMax) {
+    } else if (STATE.scores[key] >= (dimMaxMap[key] || 17)) {
       STATE.dimNotes[key] = 'Full score — no issues found.';
     } else {
       STATE.dimNotes[key] = 'No specific issues flagged.';
@@ -1201,9 +1335,11 @@ function applyResult(data) {
 
   if (data.memory && data.memory.top_patterns) {
     STATE.memory = data.memory.top_patterns.map(p => ({
-      desc: p.description || p.pattern_id || 'Unknown',
-      count: p.count || 0,
-      repos: (p.repos || []).join(' · '),
+      freq: p.count || 0,
+      pattern: p.description || p.pattern_id || 'Unknown',
+      repos: (p.repos || []).slice(0, 3).join(' · ') + ((p.repos || []).length > 3 ? ` +${p.repos.length - 3}` : ''),
+      trend: 'up',
+      delta: `${(p.repos || []).length} repo${(p.repos || []).length !== 1 ? 's' : ''}`,
     }));
     renderMemory();
     document.getElementById('memBadge').textContent = (data.memory.top_patterns.length || 0) + ' patterns';
@@ -1221,26 +1357,35 @@ async function runScan() {
 
   if (raw) {
     const isLocal = raw.startsWith('/') || raw.startsWith('~') || raw.startsWith('.');
-    let gitlabProject = null;
+    let githubRepo = null;
     let localPath = null;
     let repoLabel = raw;
 
+    let ref = 'main';
     if (isLocal) {
       localPath = raw;
       const parts = raw.replace(/\/$/, '').split('/');
       repoLabel = parts.slice(-2).join(' / ');
     } else {
-      let cleaned = raw.replace(/^https?:\/\/(www\.)?gitlab\.com\//, '');
+      let cleaned = raw.replace(/^https?:\/\/(www\.)?github\.com\//, '');
       cleaned = cleaned.replace(/\.git$/, '').replace(/\/$/, '');
       cleaned = cleaned.replace(/^\/+/, '');
-      gitlabProject = cleaned;
-      repoLabel = cleaned.replace(/\//g, ' / ');
+      const treeParts = cleaned.match(/^([^/]+\/[^/]+)\/(?:tree|pull)\/(.+)/);
+      if (treeParts) {
+        githubRepo = treeParts[1];
+        ref = treeParts[2].split('/')[0];
+        repoLabel = githubRepo.replace(/\//g, ' / ') + ' @ ' + ref;
+      } else {
+        const slashParts = cleaned.split('/');
+        githubRepo = slashParts.slice(0, 2).join('/');
+        repoLabel = githubRepo.replace(/\//g, ' / ');
+      }
     }
 
     try {
       const body = localPath
         ? { local_path: localPath }
-        : { gitlab_project: gitlabProject };
+        : { github_repo: githubRepo, ref: ref };
 
       const resp = await fetch('/scan', {
         method: 'POST',
@@ -1251,13 +1396,20 @@ async function runScan() {
         const data = await resp.json();
         applyResult(data);
         document.getElementById('heroTitle').textContent = repoLabel;
-        document.getElementById('repoName').textContent = gitlabProject || raw.replace(/\/$/, '').split('/').slice(-2).join('/');
+        document.getElementById('repoName').textContent = githubRepo || raw.replace(/\/$/, '').split('/').slice(-2).join('/');
         const nFixes = (data.fixes || []).length;
-        const mode = gitlabProject ? 'remote' : 'local';
+        const mode = githubRepo ? 'remote' : 'local';
         document.getElementById('heroDesc').innerHTML =
           `<span style="font-family:var(--mono);color:var(--amber)">${data.domain || 'general'}</span> · ` +
           `${mode} · ${nFixes} fix${nFixes !== 1 ? 'es' : ''} found · ${data.scan_duration_ms || '?'}ms`;
         fetchMemory();
+        if (githubRepo) {
+          fetchActivity(githubRepo);
+          fetchDependencies(githubRepo, false);
+        } else if (localPath) {
+          fetchDependencies(localPath, true);
+        }
+        fetchJenkins();
         scanEnd();
         return;
       } else {
@@ -1274,7 +1426,7 @@ async function runScan() {
   scanEnd();
   if (!raw) {
     document.getElementById('heroDesc').innerHTML =
-      '<span style="color:var(--text2)">Enter a GitLab project path or local directory above, then hit Scan.</span>';
+      '<span style="color:var(--text2)">Enter a GitHub repo (owner/repo) or local directory above, then hit Scan.</span>';
   }
 }
 
@@ -1317,6 +1469,189 @@ async function fetchMemory() {
       document.getElementById('memBadge').textContent = data.leaderboard.length + ' repos indexed';
     }
   } catch {}
+}
+
+// ─── ACTIVITY TRACKER ────────────────────────────────────────────────────
+
+async function fetchActivity(repo) {
+  if (!repo) return;
+  try {
+    const resp = await fetch(`/activity/${repo}?limit=8`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderActivity(data);
+  } catch {}
+}
+
+function renderActivity(data) {
+  const el = document.getElementById('activityList');
+  const items = [];
+
+  const prs = (data.pull_requests?.recent || []).slice(0, 4);
+  const commits = (data.commits?.recent || []).slice(0, 4);
+
+  prs.forEach(pr => {
+    const stateClass = pr.merged_at ? 'merged' : (pr.state === 'open' ? 'open' : 'closed');
+    const stateIcon = pr.merged_at ? '⇄' : (pr.state === 'open' ? '↑' : '✕');
+    items.push(`
+      <div class="tracker-item">
+        <div class="tracker-icon pr">${stateIcon}</div>
+        <div class="tracker-body">
+          <div class="tracker-title">#${pr.number} ${esc(pr.title)}</div>
+          <div class="tracker-meta">${esc(pr.author)} · ${esc(pr.state)}${pr.draft ? ' (draft)' : ''}</div>
+        </div>
+      </div>
+    `);
+  });
+
+  commits.forEach(c => {
+    items.push(`
+      <div class="tracker-item">
+        <div class="tracker-icon commit">●</div>
+        <div class="tracker-body">
+          <div class="tracker-title">${esc(c.message)}</div>
+          <div class="tracker-meta">${esc(c.sha)} · ${esc(c.author)}</div>
+        </div>
+      </div>
+    `);
+  });
+
+  if (items.length) {
+    el.innerHTML = items.join('');
+    const openCount = data.pull_requests?.open_count || 0;
+    const totalCommits = data.commits?.total_fetched || 0;
+    document.getElementById('activityBadge').textContent = `${openCount} open PRs · ${totalCommits} commits`;
+  } else {
+    el.innerHTML = '<div class="tracker-empty">No activity found</div>';
+  }
+}
+
+// ─── DEPENDENCY HEALTH ──────────────────────────────────────────────────
+
+async function fetchDependencies(repoOrPath, isLocal) {
+  try {
+    const body = isLocal ? { local_path: repoOrPath } : { github_repo: repoOrPath };
+    const resp = await fetch('/dependencies', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderDependencies(data);
+  } catch {}
+}
+
+function renderDependencies(data) {
+  const el = document.getElementById('depsList');
+  const badge = document.getElementById('depsBadge');
+
+  badge.textContent = `Grade ${data.health_grade} · ${data.total_deps} deps`;
+
+  let html = '';
+  const pct = data.health_score || 0;
+  const barColor = pct >= 80 ? 'var(--teal)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
+
+  html += `
+    <div style="padding: 12px 14px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span style="color:var(--text2)">Pin ratio</span>
+        <span style="color:var(--text);font-weight:600">${data.pinned}/${data.total_deps} pinned (${pct}%)</span>
+      </div>
+      <div class="dep-bar-track">
+        <div class="dep-bar-fill" style="width:${pct}%;background:${barColor}"></div>
+      </div>
+    </div>
+  `;
+
+  (data.issues || []).forEach(issue => {
+    const iconClass = issue.severity === 'high' ? 'dep-bad' : issue.severity === 'medium' ? 'dep-warn' : 'dep-ok';
+    const icon = issue.severity === 'high' ? '!' : issue.severity === 'medium' ? '△' : '✓';
+    html += `
+      <div class="tracker-item">
+        <div class="tracker-icon ${iconClass}">${icon}</div>
+        <div class="tracker-body">
+          <div class="tracker-title">${esc(issue.title)}</div>
+          <div class="tracker-meta">${esc(issue.hint)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  (data.security_flags || []).slice(0, 3).forEach(sf => {
+    html += `
+      <div class="tracker-item">
+        <div class="tracker-icon dep-bad">⚠</div>
+        <div class="tracker-body">
+          <div class="tracker-title">${esc(sf.package)}</div>
+          <div class="tracker-meta">${esc(sf.advisory)}</div>
+        </div>
+      </div>
+    `;
+  });
+
+  if (!html) html = '<div class="tracker-empty">No dependency files found</div>';
+  el.innerHTML = html;
+}
+
+// ─── JENKINS STATUS ─────────────────────────────────────────────────────
+
+async function fetchJenkins() {
+  try {
+    const healthResp = await fetch('/health');
+    if (!healthResp.ok) return;
+    const healthData = await healthResp.json();
+    if (healthData.agents?.jenkins === 'not_configured') {
+      document.getElementById('jenkinsBadge').textContent = 'not configured';
+      return;
+    }
+
+    const jobName = document.getElementById('repoInput').value.trim().replace(/\//g, '-') || 'scigate';
+    const resp = await fetch(`/jenkins/${jobName}`);
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderJenkins(data);
+  } catch {}
+}
+
+function renderJenkins(data) {
+  const el = document.getElementById('jenkinsList');
+  const badge = document.getElementById('jenkinsBadge');
+
+  if (!data.configured) {
+    badge.textContent = 'not configured';
+    el.innerHTML = '<div class="tracker-empty">Set JENKINS_URL, JENKINS_USER, JENKINS_TOKEN to enable</div>';
+    return;
+  }
+
+  if (data.error) {
+    badge.textContent = 'error';
+    el.innerHTML = `<div class="tracker-empty">${data.error}</div>`;
+    return;
+  }
+
+  const statusColors = {
+    success: 'jenkins-ok', failure: 'jenkins-fail', running: 'jenkins-run',
+    unstable: 'jenkins-run', pending: 'jenkins-run',
+  };
+  const statusIcons = {
+    success: '✓', failure: '✕', running: '⟳', unstable: '△', pending: '…',
+  };
+
+  badge.textContent = data.status || 'unknown';
+  const last = data.last_build || {};
+  const iconClass = statusColors[data.status] || 'jenkins-run';
+  const icon = statusIcons[data.status] || '?';
+
+  el.innerHTML = `
+    <div class="tracker-item">
+      <div class="tracker-icon ${iconClass}">${icon}</div>
+      <div class="tracker-body">
+        <div class="tracker-title">${data.name} #${last.number || '?'}</div>
+        <div class="tracker-meta">${last.result || 'Running'} · ${last.duration_ms ? Math.round(last.duration_ms/1000) + 's' : '?'}</div>
+      </div>
+    </div>
+  `;
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────

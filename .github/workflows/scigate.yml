@@ -1,0 +1,126 @@
+name: SciGate
+
+on:
+  push:
+    branches: [main]
+    tags:
+      - "v*-submission"
+  pull_request:
+    branches: [main]
+
+env:
+  SCIGATE_THRESHOLD: "75"
+
+jobs:
+  # ── Agent 1: Audit ──────────────────────────────────────────────────────
+  scigate-audit:
+    runs-on: ubuntu-latest
+    outputs:
+      score: ${{ steps.audit.outputs.score }}
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx pyyaml pathspec toml gitpython
+      - id: audit
+        run: |
+          python agents/audit_agent.py --path . --pretty --out audit-report.json
+          cat audit-report.json
+          SCORE=$(python3 -c "import json; print(json.load(open('audit-report.json'))['scores']['total'])")
+          echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+          echo "SciGate score: $SCORE / 100"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: audit-report
+          path: audit-report.json
+
+  # ── Lint & basic validation ─────────────────────────────────────────────
+  scigate-test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install -e ".[dev]" 2>/dev/null || pip install httpx pyyaml pathspec toml gitpython fastapi uvicorn anthropic rich click jinja2
+      - run: python -m py_compile agents/audit_agent.py
+      - run: python -m py_compile agents/fix_agent.py
+      - run: python -m py_compile agents/memory_agent.py
+      - run: python -m py_compile agents/tracker.py
+      - run: python -m py_compile agents/regression_agent.py
+      - run: python -m py_compile agents/notify_agent.py
+      - run: python -m py_compile api/server.py
+      - run: python -m py_compile policy/loader.py
+
+  # ── Agent 2: Fix (Claude) ────────────────────────────────────────────────
+  scigate-fix:
+    needs: scigate-audit
+    if: >-
+      (github.event_name == 'pull_request' || startsWith(github.ref, 'refs/tags/v'))
+      && fromJSON(needs.scigate-audit.outputs.score) < 75
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install anthropic httpx
+      - uses: actions/download-artifact@v4
+        with:
+          name: audit-report
+      - env:
+          ANTHROPIC_API_KEY: ${{ secrets.ANTHROPIC_API_KEY }}
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          SCORE=${{ needs.scigate-audit.outputs.score }}
+          echo "Score $SCORE < $SCIGATE_THRESHOLD — running fix agent"
+          python agents/fix_agent.py --score-json audit-report.json --repo "${{ github.repository }}"
+
+  # ── Agent 3: Org Memory ──────────────────────────────────────────────────
+  scigate-memory:
+    needs: scigate-audit
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - run: pip install httpx
+      - uses: actions/download-artifact@v4
+        with:
+          name: audit-report
+      - run: python agents/memory_agent.py --score-json audit-report.json --repo-name "${{ github.repository }}"
+
+  # ── Agent 4: Regression Check ──────────────────────────────────────────
+  scigate-regression:
+    needs: scigate-audit
+    if: github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    continue-on-error: true
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - uses: actions/download-artifact@v4
+        with:
+          name: audit-report
+      - run: python agents/regression_agent.py --score-json audit-report.json --repo-name "${{ github.repository }}"
+
+  # ── Gate: Block submission tags below threshold ──────────────────────────
+  scigate-gate:
+    needs: scigate-audit
+    if: startsWith(github.ref, 'refs/tags/v') && endsWith(github.ref, '-submission')
+    runs-on: ubuntu-latest
+    steps:
+      - run: |
+          SCORE=${{ needs.scigate-audit.outputs.score }}
+          echo "SciGate gate check: score=$SCORE threshold=$SCIGATE_THRESHOLD"
+          if [ "$SCORE" -lt "$SCIGATE_THRESHOLD" ]; then
+            echo "BLOCKED: Score $SCORE < $SCIGATE_THRESHOLD. Fix reproducibility issues before tagging."
+            exit 1
+          fi
+          echo "CLEARED: Score $SCORE >= $SCIGATE_THRESHOLD"

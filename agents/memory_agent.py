@@ -3,7 +3,7 @@ SciGate — Agent 3: Org Memory
 ───────────────────────────────
 Persists scan results to a JSONL history file, maintains a pattern index
 of recurring reproducibility failures, updates the org leaderboard, and
-raises GitLab issues when a failure pattern spikes across repos.
+raises GitHub issues when a failure pattern spikes across repos.
 
 Storage (flat-file, no DB dependency):
     memory/scans/{repo_slug}.jsonl   — append-only scan history per repo
@@ -11,7 +11,7 @@ Storage (flat-file, no DB dependency):
     memory/leaderboard.json          — latest scores, sorted desc
 
 Usage:
-    python memory_agent.py --score-json score.json --repo-name lab/neuralsde
+    python memory_agent.py --score-json score.json --repo-name owner/repo
     python memory_agent.py --consolidate  # nightly re-index
 """
 
@@ -58,15 +58,18 @@ def append_jsonl(path: Path, record: dict) -> None:
 # ─── SCAN HISTORY ────────────────────────────────────────────────────────────
 
 def persist_scan(score: dict, repo_name: str) -> None:
+    scores = score["scores"]
     record = {
         "ts":         now_iso(),
         "repo":       repo_name,
         "domain":     score["domain"],
-        "total":      score["scores"]["total"],
-        "env":        score["scores"]["env"],
-        "seeds":      score["scores"]["seeds"],
-        "data":       score["scores"]["data"],
-        "docs":       score["scores"]["docs"],
+        "total":      scores["total"],
+        "env":        scores.get("env", 0),
+        "seeds":      scores.get("seeds", 0),
+        "data":       scores.get("data", 0),
+        "docs":       scores.get("docs", 0),
+        "testing":    scores.get("testing", 0),
+        "compliance": scores.get("compliance", 0),
         "grade":      score["grade"],
         "commit_sha": score["commit_sha"],
         "trigger":    score["trigger"],
@@ -158,15 +161,15 @@ def update_leaderboard(score: dict, repo_name: str) -> None:
     print(f"[Memory] Leaderboard updated — {repo_name}: {score['scores']['total']}/100")
 
 
-# ─── GITLAB ISSUE ALERT ──────────────────────────────────────────────────────
+# ─── GITHUB ISSUE ALERT ──────────────────────────────────────────────────────
 
-def raise_gitlab_alert(pattern: dict) -> None:
-    gl_project = os.environ.get("SCIGATE_ORG_PROJECT")
-    gl_token   = os.environ.get("GITLAB_TOKEN")
-    gl_base    = os.environ.get("GITLAB_URL", "https://gitlab.com").rstrip("/")
+def raise_github_alert(pattern: dict) -> None:
+    gh_repo  = os.environ.get("SCIGATE_ORG_REPO")
+    gh_token = os.environ.get("GITHUB_TOKEN")
+    gh_base  = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
 
-    if not gl_project or not gl_token:
-        print("[Memory] Skipping alert issue (SCIGATE_ORG_PROJECT or GITLAB_TOKEN not set)")
+    if not gh_repo or not gh_token:
+        print("[Memory] Skipping alert issue (SCIGATE_ORG_REPO or GITHUB_TOKEN not set)")
         return
 
     try:
@@ -180,25 +183,28 @@ def raise_gitlab_alert(pattern: dict) -> None:
             **Affected repos:** {pattern['count']} ({repos_str})
 
             This failure pattern has appeared across {pattern['count']} repositories.
-            Run `/scigate full` in each affected repo's MR to get targeted fixes.
+            Run the SciGate audit in each affected repo to get targeted fixes.
 
             ---
             _Raised automatically by SciGate Org Memory · {now_iso()}_
         """).strip()
 
-        enc = gl_project.replace("/", "%2F")
         r = httpx.post(
-            f"{gl_base}/api/v4/projects/{enc}/issues",
-            headers={"PRIVATE-TOKEN": gl_token},
+            f"{gh_base}/repos/{gh_repo}/issues",
+            headers={
+                "Authorization": f"Bearer {gh_token}",
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            },
             json={
                 "title":  f"SciGate pattern spike: {pattern['description'][:80]}",
-                "description": body,
-                "labels": "scigate,scigate-alert",
+                "body": body,
+                "labels": ["scigate", "scigate-alert"],
             },
             timeout=15,
         )
         if r.status_code in (200, 201):
-            print(f"[Memory] Alert issue created: {r.json().get('web_url')}")
+            print(f"[Memory] Alert issue created: {r.json().get('html_url')}")
         else:
             print(f"[Memory] Alert issue failed: {r.status_code} {r.text[:200]}")
     except Exception as exc:
@@ -280,7 +286,7 @@ def run(score: dict, repo_name: str) -> dict:
     update_leaderboard(score, repo_name)
 
     for pattern in newly_alerted:
-        raise_gitlab_alert(pattern)
+        raise_github_alert(pattern)
 
     return {
         "status":        "updated",

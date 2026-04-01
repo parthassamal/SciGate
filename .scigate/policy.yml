@@ -1,0 +1,22 @@
+# SciGate Policy — repository-level configuration
+# Place this file at .scigate/policy.yml in your repo root.
+
+gate_threshold: 75
+
+regression_gate: false
+regression_threshold: -5
+
+protected_branches:
+  - main
+  - master
+
+notify_channels:
+  - ntfy
+
+dimensions:
+  env:        { max: 17, weight: 1.0 }
+  seeds:      { max: 17, weight: 1.0 }
+  data:       { max: 17, weight: 1.0 }
+  docs:       { max: 17, weight: 1.0 }
+  testing:    { max: 17, weight: 1.0 }
+  compliance: { max: 15, weight: 1.0 }

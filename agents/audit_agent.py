@@ -1,24 +1,27 @@
 """
 SciGate — Agent 1: Audit Engine
 ────────────────────────────────
-Classifies a research repository's domain and scores it across four
-reproducibility dimensions (Environment, Seeds, Data, Documentation).
+Classifies a research repository's domain and scores it across six
+reproducibility dimensions:
+  1. Environment (0–17)
+  2. Seeds & Determinism (0–17)
+  3. Data Provenance (0–17)
+  4. Documentation (0–17)
+  5. Testing & Validation (0–17)
+  6. License & Compliance (0–15)
 
 Works in two modes:
   • local   — scan a directory on disk (dev, Cursor, Claude Code)
-  • gitlab  — scan a remote GitLab repo via API (GitLab Duo Flow)
+  • github  — scan a remote GitHub repo via API
 
 Usage:
     # Local scan
     python audit_agent.py --path /path/to/repo
 
-    # GitLab scan
-    python audit_agent.py --gitlab-project my-lab/neuralsde --ref main
+    # GitHub scan
+    python audit_agent.py --github-repo owner/repo --ref main
 
-    # Diff-only scan (fast, on push)
-    python audit_agent.py --gitlab-project my-lab/neuralsde --diff abc123..def456
-
-Output: JSON score object matching the SciGate contract (see SKILL.md)
+Output: JSON score object matching the SciGate contract v2 (see SKILL.md)
 """
 
 import os
@@ -30,7 +33,6 @@ import fnmatch
 import argparse
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
-from typing import Optional
 
 try:
     import httpx
@@ -107,10 +109,18 @@ DOMAIN_SIGNALS = [
 
 # ─── DATA CLASSES ─────────────────────────────────────────────────────────────
 
+LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md",
+                 "COPYING", "COPYING.md"]
+
+TEST_DIR_PATTERNS = ["tests/", "test/", "spec/", "testing/"]
+TEST_FILE_PATTERNS = ["test_*.py", "*_test.py", "tests.py", "conftest.py",
+                      "test_*.R", "*_test.R"]
+
+
 @dataclass
 class DimScore:
     raw: int
-    max: int = 25
+    max: int = 17
     deductions: list[dict] = field(default_factory=list)
 
     @property
@@ -128,46 +138,38 @@ class Fix:
     claude_fix_hint: str
 
 
-@dataclass
-class ScoreObject:
-    domain: str
-    scores: dict[str, int]
-    grade: str
-    commit_sha: str
-    trigger: str
-    fixes: list[dict]
-    gate_blocked: bool
-    gate_threshold: int
-    scan_duration_ms: int
-
-
 # ─── FILE READER ──────────────────────────────────────────────────────────────
 
 class RepoReader:
-    """Abstracts local vs GitLab file access."""
+    """Abstracts local vs GitHub file access."""
 
     def __init__(self, mode: str, path: str = "",
-                 project: str = "", ref: str = "main"):
+                 repo: str = "", ref: str = "main"):
         self.mode = mode
         self.root = Path(path) if path else None
-        self.project = project
+        self.repo = repo
         self.ref = ref
         self._cache: dict[str, str] = {}
 
-        if mode == "gitlab":
+        if mode == "github":
             if not HAS_HTTPX:
-                raise ImportError("httpx is required for gitlab mode: pip install httpx")
-            self._gl_base = os.environ.get("GITLAB_URL", "https://gitlab.com").rstrip("/")
-            self._gl_token = os.environ.get("GITLAB_TOKEN", "")
-            self._http = httpx.Client(
-                headers={"PRIVATE-TOKEN": self._gl_token},
-                timeout=20,
-            )
+                raise ImportError("httpx is required for github mode: pip install httpx")
+            self._gh_base = os.environ.get(
+                "GITHUB_API_URL", "https://api.github.com"
+            ).rstrip("/")
+            self._gh_token = os.environ.get("GITHUB_TOKEN", "")
+            headers = {
+                "Accept": "application/vnd.github+json",
+                "X-GitHub-Api-Version": "2022-11-28",
+            }
+            if self._gh_token:
+                headers["Authorization"] = f"Bearer {self._gh_token}"
+            self._http = httpx.Client(headers=headers, timeout=20)
 
     def list_files(self, path: str = "", recursive: bool = True) -> list[str]:
         if self.mode == "local":
             return self._local_list(path, recursive)
-        return self._gitlab_list(path, recursive)
+        return self._github_list(path, recursive)
 
     def read(self, path: str) -> str | None:
         if path in self._cache:
@@ -175,7 +177,7 @@ class RepoReader:
         content = (
             self._local_read(path)
             if self.mode == "local"
-            else self._gitlab_read(path)
+            else self._github_read(path)
         )
         if content is not None:
             self._cache[path] = content
@@ -204,31 +206,32 @@ class RepoReader:
         except Exception:
             return None
 
-    def _gitlab_list(self, path: str, recursive: bool) -> list[str]:
-        params = {"ref": self.ref, "recursive": recursive, "per_page": 100}
-        if path:
-            params["path"] = path
-        enc_proj = self.project.replace("/", "%2F")
+    def _github_list(self, path: str, recursive: bool) -> list[str]:
         r = self._http.get(
-            f"{self._gl_base}/api/v4/projects/{enc_proj}/repository/tree",
-            params=params,
+            f"{self._gh_base}/repos/{self.repo}/git/trees/{self.ref}",
+            params={"recursive": "1" if recursive else "0"},
         )
         if r.status_code != 200:
             return []
-        return [item["path"] for item in r.json() if item["type"] == "blob"]
+        items = r.json().get("tree", [])
+        blobs = [item["path"] for item in items if item["type"] == "blob"]
+        if path:
+            blobs = [b for b in blobs if b.startswith(path.rstrip("/") + "/") or b == path]
+        return blobs
 
-    def _gitlab_read(self, path: str) -> str | None:
+    def _github_read(self, path: str) -> str | None:
         import base64
-        enc_proj = self.project.replace("/", "%2F")
-        enc_path = path.replace("/", "%2F")
         r = self._http.get(
-            f"{self._gl_base}/api/v4/projects/{enc_proj}/repository/files/{enc_path}",
+            f"{self._gh_base}/repos/{self.repo}/contents/{path}",
             params={"ref": self.ref},
         )
         if r.status_code == 404:
             return None
         r.raise_for_status()
-        return base64.b64decode(r.json()["content"]).decode("utf-8", errors="replace")
+        data = r.json()
+        if data.get("encoding") == "base64":
+            return base64.b64decode(data["content"]).decode("utf-8", errors="replace")
+        return data.get("content", "")
 
 
 # ─── DOMAIN CLASSIFIER ───────────────────────────────────────────────────────
@@ -266,7 +269,7 @@ def classify_domain(reader: RepoReader) -> str:
 # ─── DIMENSION: ENVIRONMENT ──────────────────────────────────────────────────
 
 def score_environment(reader: RepoReader) -> DimScore:
-    dim = DimScore(raw=25)
+    dim = DimScore(raw=17)
     all_files = reader.list_files(recursive=False)
     all_files_lower = [f.lower() for f in all_files]
 
@@ -281,11 +284,11 @@ def score_environment(reader: RepoReader) -> DimScore:
             break
 
     if not has_env_file:
-        dim.raw -= 15
+        dim.raw -= 10
         dim.deductions.append({
             "issue": "No environment file found",
             "files": [],
-            "points": 15,
+            "points": 10,
             "hint": "Create requirements.txt with pinned versions or a conda environment.yml",
         })
         return dim
@@ -303,7 +306,7 @@ def score_environment(reader: RepoReader) -> DimScore:
             if l and "==" not in l and not l.startswith("git+") and not l.startswith("http")
         ]
         if unpinned:
-            penalty = min(10, len(unpinned) * 2)
+            penalty = min(7, len(unpinned))
             dim.raw -= penalty
             dim.deductions.append({
                 "issue": f"{len(unpinned)} unpinned dependencies in {req_name}",
@@ -320,11 +323,11 @@ def score_environment(reader: RepoReader) -> DimScore:
             ""
         )
         if from_line and "@sha256:" not in from_line:
-            dim.raw -= 5
+            dim.raw -= 4
             dim.deductions.append({
                 "issue": "Dockerfile base image not pinned to SHA digest",
                 "files": ["Dockerfile"],
-                "points": 5,
+                "points": 4,
                 "hint": (
                     f"Replace mutable tag in '{from_line.strip()}' with "
                     "python@sha256:<digest> for bit-perfect reproducibility"
@@ -337,7 +340,7 @@ def score_environment(reader: RepoReader) -> DimScore:
 # ─── DIMENSION: SEEDS ────────────────────────────────────────────────────────
 
 def score_seeds(reader: RepoReader, domain: str) -> DimScore:
-    dim = DimScore(raw=25)
+    dim = DimScore(raw=17)
     all_files = reader.list_files(recursive=True)
 
     def is_experiment(path: str) -> bool:
@@ -380,7 +383,7 @@ def score_seeds(reader: RepoReader, domain: str) -> DimScore:
             unseeded_files.append(path)
 
     if unseeded_files:
-        penalty = min(25, len(unseeded_files) * 5)
+        penalty = min(17, len(unseeded_files) * 4)
         dim.raw -= penalty
         dim.deductions.append({
             "issue": f"{len(unseeded_files)} script(s) use randomness without seeding",
@@ -402,7 +405,7 @@ def score_seeds(reader: RepoReader, domain: str) -> DimScore:
 # ─── DIMENSION: DATA PROVENANCE ──────────────────────────────────────────────
 
 def score_data(reader: RepoReader) -> DimScore:
-    dim = DimScore(raw=25)
+    dim = DimScore(raw=17)
     all_files = reader.list_files(recursive=True)
 
     source_files = [
@@ -417,7 +420,7 @@ def score_data(reader: RepoReader) -> DimScore:
             abs_path_files.append(path)
 
     if abs_path_files:
-        penalty = min(15, len(abs_path_files) * 5)
+        penalty = min(10, len(abs_path_files) * 5)
         dim.raw -= penalty
         dim.deductions.append({
             "issue": f"Hardcoded absolute paths in {len(abs_path_files)} file(s)",
@@ -432,11 +435,11 @@ def score_data(reader: RepoReader) -> DimScore:
         for p in DATA_SCRIPT_PATTERNS
     )
     if not has_download:
-        dim.raw -= 10
+        dim.raw -= 7
         dim.deductions.append({
             "issue": "No data download or preparation script found",
             "files": [],
-            "points": 10,
+            "points": 7,
             "hint": "Create scripts/download_data.sh or data/README.md with provenance and checksums",
         })
 
@@ -449,11 +452,11 @@ def score_data(reader: RepoReader) -> DimScore:
         and not f.startswith("tests/")
     ]
     if committed_data:
-        dim.raw -= 5
+        dim.raw -= 4
         dim.deductions.append({
             "issue": f"{len(committed_data)} raw data file(s) committed to repo",
             "files": committed_data[:3],
-            "points": 5,
+            "points": 4,
             "hint": "Add data files to .gitignore; store in external storage with checksums",
         })
 
@@ -463,7 +466,7 @@ def score_data(reader: RepoReader) -> DimScore:
 # ─── DIMENSION: DOCUMENTATION ────────────────────────────────────────────────
 
 def score_docs(reader: RepoReader) -> DimScore:
-    dim = DimScore(raw=25)
+    dim = DimScore(raw=17)
 
     readme_content = ""
     for rname in README_PATTERNS:
@@ -473,11 +476,11 @@ def score_docs(reader: RepoReader) -> DimScore:
             break
 
     if not readme_content:
-        dim.raw -= 25
+        dim.raw -= 17
         dim.deductions.append({
             "issue": "No README file found",
             "files": [],
-            "points": 25,
+            "points": 17,
             "hint": "Create README.md with: run instructions, hardware requirements, expected outputs",
         })
         return dim
@@ -489,11 +492,11 @@ def score_docs(reader: RepoReader) -> DimScore:
                    "how to run", "to run", "getting started")
     )
     if not has_run_instructions:
-        dim.raw -= 8
+        dim.raw -= 6
         dim.deductions.append({
             "issue": "README missing step-by-step run instructions",
             "files": ["README.md"],
-            "points": 8,
+            "points": 6,
             "hint": "Add a ## Usage section with copy-paste commands to reproduce results",
         })
 
@@ -503,11 +506,11 @@ def score_docs(reader: RepoReader) -> DimScore:
                    "v100", "a100", "rtx", "hardware", "requirement")
     )
     if not has_hardware:
-        dim.raw -= 6
+        dim.raw -= 4
         dim.deductions.append({
             "issue": "README missing hardware requirements",
             "files": ["README.md"],
-            "points": 6,
+            "points": 4,
             "hint": "Add GPU model, RAM, and storage requirements needed to reproduce",
         })
 
@@ -517,11 +520,11 @@ def score_docs(reader: RepoReader) -> DimScore:
                    "takes ", "took ")
     )
     if not has_runtime:
-        dim.raw -= 5
+        dim.raw -= 3
         dim.deductions.append({
             "issue": "README missing estimated runtime",
             "files": ["README.md"],
-            "points": 5,
+            "points": 3,
             "hint": "Add approximate wall-clock time for full reproduction (e.g. '~4h on A100')",
         })
 
@@ -531,11 +534,11 @@ def score_docs(reader: RepoReader) -> DimScore:
                    "performance", "table", "figure", "plot", "expected")
     )
     if not has_outputs:
-        dim.raw -= 4
+        dim.raw -= 2
         dim.deductions.append({
             "issue": "README missing expected outputs or results",
             "files": ["README.md"],
-            "points": 4,
+            "points": 2,
             "hint": "Add expected metrics or outputs so others can verify their reproduction",
         })
 
@@ -556,6 +559,132 @@ def score_docs(reader: RepoReader) -> DimScore:
     return dim
 
 
+# ─── DIMENSION: TESTING & VALIDATION ────────────────────────────────────────
+
+def score_testing(reader: RepoReader) -> DimScore:
+    dim = DimScore(raw=17)
+    all_files = reader.list_files(recursive=True)
+
+    test_files = [
+        f for f in all_files
+        if any(fnmatch.fnmatch(Path(f).name, tp) for tp in TEST_FILE_PATTERNS)
+        or any(f.startswith(td) for td in TEST_DIR_PATTERNS)
+    ]
+
+    if not test_files:
+        dim.raw -= 8
+        dim.deductions.append({
+            "issue": "No test suite found",
+            "files": [],
+            "points": 8,
+            "hint": "Add a tests/ directory with pytest or unittest test files",
+        })
+    else:
+        source_py = [f for f in all_files if f.endswith(".py")
+                     and not any(f.startswith(td) for td in TEST_DIR_PATTERNS)
+                     and not f.startswith("setup")]
+        test_ratio = len(test_files) / max(len(source_py), 1)
+        if test_ratio < 0.15:
+            dim.raw -= 4
+            dim.deductions.append({
+                "issue": f"Low test coverage: {len(test_files)} test files vs {len(source_py)} source files",
+                "files": [],
+                "points": 4,
+                "hint": "Aim for at least 1 test file per 5 source files for non-model code",
+            })
+
+    py_files = [f for f in all_files if f.endswith(".py")][:30]
+    has_assertions = False
+    for path in py_files:
+        content = reader.read(path)
+        if content and re.search(r'assert\s+.*\.(shape|dtype|ndim|size)\b', content):
+            has_assertions = True
+            break
+
+    if not has_assertions and any("train" in f.lower() or "model" in f.lower() for f in all_files):
+        dim.raw -= 3
+        dim.deductions.append({
+            "issue": "No data shape/dtype assertions found before model calls",
+            "files": [],
+            "points": 3,
+            "hint": "Add assert tensor.shape == (batch, channels, H, W) before model forward pass",
+        })
+
+    main_entry_points = [f for f in all_files if Path(f).name in
+                         ("main.py", "run.py", "train.py", "experiment.py", "pipeline.py")]
+    if main_entry_points and not test_files:
+        dim.raw -= 2
+        dim.deductions.append({
+            "issue": "Main pipeline entry point has no smoke test",
+            "files": main_entry_points[:2],
+            "points": 2,
+            "hint": "Add an integration test that runs the main pipeline on a small sample",
+        })
+
+    return dim
+
+
+# ─── DIMENSION: LICENSE & COMPLIANCE ─────────────────────────────────────────
+
+def score_compliance(reader: RepoReader) -> DimScore:
+    dim = DimScore(raw=15, max=15)
+    all_files = reader.list_files(recursive=False)
+    all_files_lower = [f.lower() for f in all_files]
+
+    has_license = any(
+        lf.lower() in all_files_lower
+        for lf in LICENSE_FILES
+    )
+
+    if not has_license:
+        dim.raw -= 8
+        dim.deductions.append({
+            "issue": "No LICENSE file found",
+            "files": [],
+            "points": 8,
+            "hint": "Add a LICENSE file (MIT, Apache-2.0, or BSD-3-Clause recommended for research code)",
+        })
+
+    license_content = ""
+    for lf in LICENSE_FILES:
+        content = reader.read(lf)
+        if content:
+            license_content = content.lower()
+            break
+
+    repo_is_permissive = any(kw in license_content for kw in
+                             ("mit license", "apache license", "bsd", "isc license"))
+
+    if repo_is_permissive:
+        req_content = reader.read("requirements.txt") or ""
+        pipfile_content = reader.read("Pipfile") or ""
+        deps_text = (req_content + pipfile_content).lower()
+        gpl_deps = [
+            pkg for pkg in ("gpl", "agpl", "gnu general public")
+            if pkg in deps_text
+        ]
+        if gpl_deps:
+            dim.raw -= 4
+            dim.deductions.append({
+                "issue": "Potential copyleft license conflict in dependencies",
+                "files": ["requirements.txt"],
+                "points": 4,
+                "hint": "GPL-licensed dependencies in a permissively-licensed project may create conflicts",
+            })
+
+    has_notice = "notice" in " ".join(all_files_lower)
+    if license_content and "apache" in license_content and not has_notice:
+        dim.raw -= 3
+        dim.deductions.append({
+            "issue": "Apache-2.0 project missing NOTICE file",
+            "files": [],
+            "points": 3,
+            "hint": "Apache-2.0 requires a NOTICE file for attributions",
+        })
+
+    return dim
+
+
 # ─── GRADE ASSIGNMENT ────────────────────────────────────────────────────────
 
 def assign_grade(total: int) -> str:
@@ -569,13 +698,15 @@ def assign_grade(total: int) -> str:
 # ─── FIX BUILDER ─────────────────────────────────────────────────────────────
 
 def build_fixes(
-    env: DimScore, seeds: DimScore, data: DimScore, docs: DimScore
+    env: DimScore, seeds: DimScore, data: DimScore,
+    docs: DimScore, testing: DimScore, compliance: DimScore,
 ) -> list[Fix]:
     candidates: list[Fix] = []
     rank = 0
 
-    for dim_name, dim in [("env", env), ("seeds", seeds),
-                           ("data", data), ("docs", docs)]:
+    for dim_name, dim in [("env", env), ("seeds", seeds), ("data", data),
+                           ("docs", docs), ("testing", testing),
+                           ("compliance", compliance)]:
         for d in dim.deductions:
             rank += 1
             candidates.append(Fix(
@@ -587,7 +718,8 @@ def build_fixes(
                 claude_fix_hint=d["hint"],
             ))
 
-    dim_priority = {"data": 0, "seeds": 1, "env": 2, "docs": 3}
+    dim_priority = {"compliance": 0, "data": 1, "seeds": 2,
+                    "env": 3, "testing": 4, "docs": 5}
     candidates.sort(
         key=lambda f: (-f.points_recoverable, dim_priority.get(f.dimension, 9))
     )
@@ -595,7 +727,7 @@ def build_fixes(
     for i, fix in enumerate(candidates):
         fix.rank = i + 1
 
-    return candidates[:7]
+    return candidates[:10]
 
 
 # ─── MAIN AUDIT ──────────────────────────────────────────────────────────────
@@ -607,26 +739,33 @@ def audit(
 ) -> dict:
     t0 = time.perf_counter()
 
-    domain    = classify_domain(reader)
-    env_dim   = score_environment(reader)
-    seed_dim  = score_seeds(reader, domain)
-    data_dim  = score_data(reader)
-    docs_dim  = score_docs(reader)
+    domain     = classify_domain(reader)
+    env_dim    = score_environment(reader)
+    seed_dim   = score_seeds(reader, domain)
+    data_dim   = score_data(reader)
+    docs_dim   = score_docs(reader)
+    test_dim   = score_testing(reader)
+    comp_dim   = score_compliance(reader)
 
-    total = env_dim.value + seed_dim.value + data_dim.value + docs_dim.value
+    total = min(100, (
+        env_dim.value + seed_dim.value + data_dim.value +
+        docs_dim.value + test_dim.value + comp_dim.value
+    ))
     grade = assign_grade(total)
-    fixes = build_fixes(env_dim, seed_dim, data_dim, docs_dim)
+    fixes = build_fixes(env_dim, seed_dim, data_dim, docs_dim, test_dim, comp_dim)
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
     result = {
         "domain": domain,
         "scores": {
-            "env":   env_dim.value,
-            "seeds": seed_dim.value,
-            "data":  data_dim.value,
-            "docs":  docs_dim.value,
-            "total": total,
+            "env":        env_dim.value,
+            "seeds":      seed_dim.value,
+            "data":       data_dim.value,
+            "docs":       docs_dim.value,
+            "testing":    test_dim.value,
+            "compliance": comp_dim.value,
+            "total":      total,
         },
         "grade": grade,
         "commit_sha": commit_sha,
@@ -636,10 +775,12 @@ def audit(
         "gate_threshold": GATE_THRESHOLD,
         "scan_duration_ms": elapsed_ms,
         "_deductions": {
-            "env":   env_dim.deductions,
-            "seeds": seed_dim.deductions,
-            "data":  data_dim.deductions,
-            "docs":  docs_dim.deductions,
+            "env":        env_dim.deductions,
+            "seeds":      seed_dim.deductions,
+            "data":       data_dim.deductions,
+            "docs":       docs_dim.deductions,
+            "testing":    test_dim.deductions,
+            "compliance": comp_dim.deductions,
         },
     }
     return result
@@ -651,7 +792,7 @@ if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="SciGate Audit Agent")
     group = parser.add_mutually_exclusive_group(required=True)
     group.add_argument("--path", help="Local repo directory to scan")
-    group.add_argument("--gitlab-project", help="GitLab project path (group/repo)")
+    group.add_argument("--github-repo", help="GitHub repo (owner/repo)")
 
     parser.add_argument("--ref",    default="main",    help="Git ref (branch/tag/SHA)")
     parser.add_argument("--sha",    default="unknown", help="Commit SHA for output")
@@ -664,7 +805,7 @@ if __name__ == "__main__":
     if args.path:
         reader = RepoReader(mode="local", path=args.path)
     else:
-        reader = RepoReader(mode="gitlab", project=args.gitlab_project, ref=args.ref)
+        reader = RepoReader(mode="github", repo=args.github_repo, ref=args.ref)
 
     result = audit(reader, commit_sha=args.sha, trigger=args.trigger)
 

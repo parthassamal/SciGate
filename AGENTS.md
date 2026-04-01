@@ -1,62 +1,65 @@
-# SciGate — Agent Instructions
+# SciGate Agent Instructions
 
-## Overview
+> These instructions apply to any AI agent (Claude Code, Cursor, GitHub Copilot)
+> working on the SciGate codebase.
 
-SciGate is a reproducibility scoring system for scientific code repositories.
-It uses three cooperating agents to audit, fix, and track reproducibility.
+## System Overview
 
-## Agent 1: Audit
+SciGate is a Scientific Reproducibility Intelligence Platform that scores
+repositories across 6 dimensions (Environment, Seeds, Data, Documentation,
+Testing, Compliance) and generates AI-authored fixes. 100% open-source stack.
 
-Classify the repository's scientific domain and score it across four
-reproducibility dimensions (Environment, Seeds, Data Provenance, Documentation),
-each worth 0–25 points for a total of 0–100.
+## Agent Pipeline
 
-### Domain classification
+1. **Agent 1 — Audit** (`agents/audit_agent.py`)
+   - Classify scientific domain via heuristics
+   - Score 6 dimensions (total 0–100)
+   - Output structured JSON report (ScanReport v2)
 
-Classify into exactly one:
-- `ml-training` — PyTorch / TensorFlow / JAX training scripts
-- `bioinformatics` — genomics, proteomics, sequencing pipelines
-- `climate-model` — NetCDF, Fortran, MPI, climate simulation
-- `econometrics` — R, Stata, economic panel data analysis
-- `general-science` — any other empirical research code
+2. **Agent 2 — Fix** (`agents/fix_agent.py`)
+   - Read audit score, call Claude to generate fixes
+   - Safety-filter: NEVER touch protected patterns (train, model, loss, etc.)
+   - Open a draft PR via the VCS adapter (GitHub / Gitea)
 
-### Scoring rubric
+3. **Agent 3 — Org Memory** (`agents/memory_agent.py`)
+   - Persist scan to JSON history
+   - Update pattern frequency index
+   - Raise GitHub/Gitea issues on pattern spikes
 
-**Environment (0–25):** Start at 25. Deduct -15 for no environment file,
--10 for unpinned deps, -5 for mutable Dockerfile base tag, -3 for missing
-CUDA version.
+4. **Agent 4 — Regression** (`agents/regression_agent.py`)
+   - Compare current scan vs. last N scans
+   - Detect score regression (-5 pts threshold per dimension)
+   - Optionally block merge if regression_gate is enabled in policy
 
-**Seeds (0–25):** Start at 25. Deduct -5 per unseeded random call in
-experiment/training/evaluation code.
+5. **Agent 5 — Notify** (`agents/notify_agent.py`)
+   - Fan-out: VCS commit check, Mattermost, ntfy, Email
+   - Badge URL generation
+   - Grafana OnCall escalation for CRITICAL grade
 
-**Data provenance (0–25):** Start at 25. Deduct -5 per hardcoded absolute path,
--10 for no data download script, -5 for raw data without provenance, -5 for
-no checksums.
+6. **Tracker** (`agents/tracker.py`)
+   - Pull Requests (open, merged, draft)
+   - Commits (recent log, diffs, comparisons)
+   - CI Jobs: Jenkins, Woodpecker CI, GitHub Actions
+   - Dependency health (pin ratio, CVEs, deprecated, SBOM)
 
-**Documentation (0–25):** Start at 25. Deduct -8 for no run instructions,
--6 for no hardware requirements, -5 for no runtime estimate, -4 for no
-expected output description, -2 for no citation.
+## Integration Layer
 
-### Grade thresholds
+All external service calls go through adapter interfaces:
 
-90–100 EXCELLENT, 75–89 GOOD, 50–74 FAIR, 25–49 POOR, 0–24 CRITICAL.
+- `integrations/vcs/` — VCS adapter (GitHub, Gitea)
+- `integrations/ci/` — CI adapter (Jenkins, Woodpecker, GitHub Actions)
+- `integrations/notify/` — Notification adapter (ntfy, Mattermost, etc.)
 
-## Agent 2: Fix
+## Policy-as-Code
 
-Read the audit score, generate targeted code fixes, and open a draft MR.
+Repository-level config at `.scigate/policy.yml` controls gate thresholds,
+regression gates, notification channels, and dimension weights.
 
-### Safety rules
+## Critical Rules
 
-1. NEVER modify training logic, model definitions, or loss functions.
-2. Only add/modify: environment files, seed wrappers, data scripts, README sections.
-3. Each fix must be minimal and reviewable.
-4. Process fixes in rank order (highest points recoverable first).
-
-## Agent 3: Org Memory
-
-Persist scan results, detect recurring failure patterns across repos,
-maintain a leaderboard, and raise GitLab issues when failure patterns spike.
-
-## Gate rule
-
-Block `v*-submission` tags if score < 75.
+- NEVER call Anthropic API without a system prompt
+- NEVER touch protected file patterns in fix generation
+- NEVER store API keys in plaintext
+- ALWAYS cap score_projected = min(total, 100)
+- ALWAYS sort leaderboard by latest_score DESC
+- ALWAYS include scan_id in log lines

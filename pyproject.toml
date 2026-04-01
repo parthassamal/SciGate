@@ -4,8 +4,8 @@ build-backend = "setuptools.build_meta"
 
 [project]
 name = "scigate"
-version = "0.1.0"
-description = "Reproducibility Credit Score for scientific codebases — like FICO for science"
+version = "2.1.0"
+description = "Scientific Reproducibility Intelligence Platform — 6-dimension scoring, AI fixes, open-source stack"
 readme = "README.md"
 requires-python = ">=3.10"
 license = {text = "MIT"}
@@ -20,12 +20,13 @@ dependencies = [
     "gitpython>=3.1.0",
     "pathspec>=0.12.0",
     "jinja2>=3.1.0",
-    "aiohttp>=3.9.0",
-    "aiofiles>=23.0",
+    "httpx>=0.27.0",
+    "fastapi>=0.115.0",
+    "uvicorn>=0.30.0",
 ]
 
 [project.scripts]
 scigate = "scigate.cli:main"
 
 [tool.setuptools.packages.find]
-include = ["scigate*"]
+include = ["scigate*", "agents*", "integrations*", "policy*"]
