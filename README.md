@@ -14,39 +14,105 @@ Self-hostable. 100% open-source infrastructure. No vendor lock-in.
 
 ## Architecture
 
+### System Overview
+
+```mermaid
+graph TB
+    subgraph Ingest["Ingest Layer"]
+        WH["GitHub / Gitea<br/>Webhook"]
+        CLI["CLI"]
+        API["REST API"]
+        DASH["Dashboard"]
+    end
+
+    subgraph Pipeline["Agent Pipeline"]
+        A1["Agent 1: Audit<br/>Score 6 dimensions → ScanReport"]
+        A2["Agent 2: Fix<br/>Claude patches → Draft PR"]
+        A3["Agent 3: Memory<br/>Pattern index → Leaderboard"]
+        A4["Agent 4: Regression<br/>Score drops → Block merge"]
+        A5["Agent 5: Notify<br/>Fan-out → Badge SVG"]
+        TR["Tracker<br/>PRs · Commits · CI · Deps"]
+    end
+
+    subgraph Integrations["Integration Adapters"]
+        VCS["VCS<br/>GitHub · Gitea"]
+        CI["CI<br/>Jenkins · Woodpecker · GHA"]
+        NF["Notify<br/>ntfy · Mattermost"]
+    end
+
+    subgraph Storage["Persistence"]
+        MEM["Memory<br/>JSONL + JSON"]
+        POL["Policy<br/>.scigate/policy.yml"]
+    end
+
+    WH & CLI & API & DASH --> A1
+    A1 -->|score < threshold| A2
+    A1 --> A3
+    A1 --> A4
+    A1 --> A5
+    A1 --> TR
+    A2 --> VCS
+    A3 --> MEM
+    A4 --> MEM
+    A5 --> NF
+    A5 --> VCS
+    TR --> CI
+    TR --> VCS
+    A4 --> POL
 ```
-Webhook (push / PR) ─┬─ CLI ─┬─ REST API ─┬─ Dashboard
-                      │       │            │
-                      ▼       ▼            ▼
-              ┌────────────────────────────────────┐
-              │  Agent 1: Audit                    │
-              │  Score 6 dimensions → ScanReport   │
-              └────────────┬───────────────────────┘
-                           │
-              ┌────────────▼───────────────────────┐
-              │  Agent 2: Fix (Claude)             │
-              │  Generate patches → Draft PR       │
-              └────────────┬───────────────────────┘
-                           │
-              ┌────────────▼───────────────────────┐
-              │  Agent 3: Memory                   │
-              │  Pattern index → Leaderboard       │
-              └────────────┬───────────────────────┘
-                           │
-              ┌────────────▼───────────────────────┐
-              │  Agent 4: Regression               │
-              │  Detect score drops → Block merge  │
-              └────────────┬───────────────────────┘
-                           │
-              ┌────────────▼───────────────────────┐
-              │  Agent 5: Notify                   │
-              │  Fan-out alerts → Badge SVG        │
-              └────────────┬───────────────────────┘
-                           │
-              ┌────────────▼───────────────────────┐
-              │  Tracker                           │
-              │  PRs / Commits / CI / Dependencies │
-              └────────────────────────────────────┘
+
+### Backend (FastAPI)
+
+```mermaid
+graph LR
+    subgraph API["api/server.py — FastAPI v2.1.0"]
+        SCAN["POST /v1/scan"]
+        LB["GET /v1/leaderboard"]
+        HIST["GET /v1/repo/.../history"]
+        ACT["GET /v1/activity/..."]
+        CIR["GET /v1/ci/{provider}/{job}"]
+        DEP["POST /v1/dependencies"]
+        POL["GET /v1/policy/{tenant}"]
+        WHG["POST /v1/webhooks/github"]
+        WHT["POST /v1/webhooks/gitea"]
+        HP["GET /health"]
+    end
+
+    SCAN --> AUD["audit_agent"]
+    SCAN --> FIX["fix_agent"]
+    SCAN --> MMA["memory_agent"]
+    SCAN --> REG["regression_agent"]
+    SCAN --> NOT["notify_agent"]
+    ACT --> TRK["tracker"]
+    CIR --> CIA["CI adapters"]
+    WHG --> AUD
+    WHT --> AUD
+```
+
+### Frontend (Dashboard SPA)
+
+```mermaid
+graph TD
+    subgraph Dashboard["dashboard/index.html"]
+        INP["Repo Input<br/>owner/repo · branch URL · local path"]
+        GAU["Score Gauge<br/>0–100 animated"]
+        DIM["6 Dimension Cards<br/>env · seeds · data · docs · testing · compliance"]
+        FIX["Fix List<br/>ranked suggestions"]
+        MEM["Memory Panel<br/>patterns · leaderboard"]
+        ACT["Activity Panel<br/>PRs · commits · diffs"]
+        DEP["Dependency Health<br/>pinning · CVEs · deprecated"]
+        CIS["CI Status<br/>Jenkins · Woodpecker · GHA"]
+        BDG["Badge Embed<br/>shields.io copy-to-clipboard"]
+    end
+
+    INP -->|POST /v1/scan| GAU
+    GAU --> DIM
+    GAU --> FIX
+    GAU --> MEM
+    INP -->|GET /v1/activity| ACT
+    INP -->|POST /v1/dependencies| DEP
+    INP -->|GET /v1/ci| CIS
+    GAU --> BDG
 ```
 
 Every PR and push to `main` triggers the full pipeline automatically via
@@ -84,7 +150,7 @@ threshold.
 ### Docker (recommended)
 
 ```bash
-git clone https://github.com/your-org/scigate && cd scigate
+git clone https://github.com/parthassamal/SciGate && cd SciGate
 cp .env.example .env
 # Edit .env: set ANTHROPIC_API_KEY, GITHUB_TOKEN
 
@@ -257,6 +323,22 @@ See `.env.example` for the full list.
 The `.github/workflows/scigate.yml` workflow runs on every push to `main`
 and on every pull request:
 
+```mermaid
+graph LR
+    PUSH["push / PR"] --> AUDIT["scigate-audit<br/>Score 6 dims"]
+    PUSH --> TEST["scigate-test<br/>Compile check"]
+
+    AUDIT --> MEM["scigate-memory<br/>Update patterns"]
+    AUDIT -->|"PR + score < 75"| FIX["scigate-fix<br/>Claude fix PR"]
+    AUDIT -->|"PR only"| REG["scigate-regression<br/>Detect score drops"]
+    AUDIT -->|"v*-submission tag"| GATE["scigate-gate<br/>Block if below threshold"]
+
+    style AUDIT fill:#2563eb,color:#fff
+    style FIX fill:#f59e0b,color:#000
+    style REG fill:#8b5cf6,color:#fff
+    style GATE fill:#ef4444,color:#fff
+```
+
 | Job | Trigger | Purpose |
 |---|---|---|
 | **scigate-audit** | All pushes + PRs | Run audit agent, output score, upload report artifact |
@@ -270,41 +352,65 @@ and on every pull request:
 
 ## Project Structure
 
+```mermaid
+graph LR
+    subgraph Agents["agents/"]
+        AA["audit_agent.py<br/><i>6-dimension scoring</i>"]
+        FA["fix_agent.py<br/><i>Claude fix generation + PR</i>"]
+        MA["memory_agent.py<br/><i>pattern tracking + leaderboard</i>"]
+        RA["regression_agent.py<br/><i>score regression detection</i>"]
+        NA["notify_agent.py<br/><i>notification fan-out + badge</i>"]
+        TK["tracker.py<br/><i>PR / commit / CI / deps</i>"]
+    end
+
+    subgraph API["api/"]
+        SV["server.py<br/><i>FastAPI v2.1 · /v1/ routes</i>"]
+    end
+
+    subgraph Front["dashboard/"]
+        DH["index.html<br/><i>Interactive SPA</i>"]
+    end
+
+    subgraph Int["integrations/"]
+        VCS["vcs/<br/><i>GitHub · Gitea</i>"]
+        CID["ci/<br/><i>Jenkins · Woodpecker · GHA</i>"]
+        NTF["notify/<br/><i>ntfy · Mattermost</i>"]
+    end
+
+    subgraph Pol["policy/"]
+        PL["loader.py<br/><i>.scigate/policy.yml reader</i>"]
+    end
+
+    subgraph CLi["scigate/"]
+        CL["cli.py<br/><i>scigate audit / scan / dashboard</i>"]
+    end
+
+    subgraph Mem["memory/"]
+        SC["scans/<br/><i>per-repo JSONL history</i>"]
+        LB["leaderboard.json"]
+        PT["patterns.json"]
+    end
+
+    subgraph Infra["infra & config"]
+        DF["Dockerfile"]
+        DC["docker-compose.yml<br/><i>API + Redis + Prometheus + Grafana</i>"]
+        PR["prometheus.yml"]
+        GH[".github/workflows/scigate.yml<br/><i>CI/CD pipeline</i>"]
+        SG[".scigate/policy.yml<br/><i>policy-as-code</i>"]
+    end
 ```
-agents/
-  audit_agent.py         — Agent 1: 6-dimension reproducibility scoring
-  fix_agent.py           — Agent 2: Claude-powered fix generation + PR creation
-  memory_agent.py        — Agent 3: org memory, pattern tracking, leaderboard
-  regression_agent.py    — Agent 4: score regression detection
-  notify_agent.py        — Agent 5: notification fan-out + badge generation
-  tracker.py             — PR/commit/CI/dependency tracking
-api/
-  server.py              — FastAPI server (v1 + legacy routes)
-dashboard/
-  index.html             — Interactive SPA dashboard
-integrations/
-  vcs/                   — VCS adapters (GitHub, Gitea)
-  ci/                    — CI adapters (Jenkins, Woodpecker, GitHub Actions)
-  notify/                — Notification adapters (ntfy, Mattermost)
-policy/
-  loader.py              — Policy-as-code reader (.scigate/policy.yml)
-scigate/
-  cli.py                 — CLI interface (scigate audit / scan / dashboard)
-memory/
-  scans/                 — Per-repo scan history (JSONL)
-  leaderboard.json       — Ranked repo scores
-  patterns.json          — Cross-repo failure patterns
-infra/
-  prometheus.yml         — Prometheus scrape config
-tests/
-  test_scoring.py        — Scoring engine tests
-.github/workflows/
-  scigate.yml            — CI/CD pipeline (audit → fix → memory → regression → gate)
-.scigate/
-  policy.yml             — Example policy-as-code config
-Dockerfile               — Container image
-docker-compose.yml       — Full stack (API + Redis + Prometheus + Grafana)
-```
+
+| Directory | Purpose |
+|---|---|
+| `agents/` | 5 pipeline agents + tracker module |
+| `api/` | FastAPI server with versioned routes (`/v1/`) |
+| `dashboard/` | Single-page web UI with score gauge, dimension cards, activity panels |
+| `integrations/` | Adapter pattern: VCS (GitHub, Gitea), CI (Jenkins, Woodpecker, GHA), Notify (ntfy, Mattermost) |
+| `policy/` | Policy-as-code loader for `.scigate/policy.yml` |
+| `scigate/` | CLI package (`scigate audit`, `scigate scan`, `scigate dashboard`) |
+| `memory/` | Flat-file persistence: per-repo scan history, leaderboard, patterns |
+| `infra/` | Prometheus config, Docker Compose with observability profile |
+| `tests/` | Scoring engine tests |
 
 ---
 
