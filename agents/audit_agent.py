@@ -107,6 +107,72 @@ DOMAIN_SIGNALS = [
 ]
 
 
+# Known reproducibility/provenance tools — presence awards bonus points
+PROVENANCE_TOOLS = {
+    "dvc.yaml": ("dvc", "data", 5),
+    "dvc.lock": ("dvc", "data", 5),
+    ".dvc": ("dvc", "data", 5),
+    "Snakefile": ("snakemake", "data", 3),
+    "nextflow.config": ("nextflow", "data", 3),
+    ".reprozip-trace": ("reprozip", "data", 5),
+    "MLproject": ("mlflow", "seeds", 3),
+    "mlflow.yaml": ("mlflow", "seeds", 3),
+    "_toc.yml": ("jupyter-book", "docs", 3),
+    "Makefile.repro": ("reprozip", "data", 3),
+}
+
+# Tools detected via imports in source code
+PROVENANCE_IMPORTS = {
+    "from sacred import": ("sacred", "seeds", 4),
+    "import sacred": ("sacred", "seeds", 4),
+    "import dvc": ("dvc", "data", 3),
+    "import mlflow": ("mlflow", "seeds", 3),
+    "import wandb": ("wandb", "seeds", 2),
+    "from dvc.api": ("dvc", "data", 3),
+}
+
+# nbstripout / jupytext detection patterns
+NOTEBOOK_TOOL_MARKERS = {
+    ".gitattributes": [
+        ("nbstripout", "filter=nbstripout"),
+        ("jupytext", "jupytext"),
+    ],
+    "pyproject.toml": [
+        ("jupytext", "[tool.jupytext]"),
+        ("nbstripout", "nbstripout"),
+    ],
+}
+
+# Known copyleft packages (common ones that cause license conflicts)
+KNOWN_COPYLEFT_PACKAGES = {
+    "gpl": ["pyqt5", "pyqt6", "pygobject", "readline", "mysql-connector-python",
+             "ghostscript", "gnuplot-py", "gsl", "fftw"],
+    "lgpl": ["pyqt5-sip", "chardet"],
+    "agpl": ["mongodb-driver", "itext"],
+}
+
+# SPDX license identifiers for detection
+SPDX_PERMISSIVE = {"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC",
+                    "Unlicense", "0BSD", "CC0-1.0", "Zlib"}
+SPDX_COPYLEFT = {"GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only",
+                  "GPL-3.0-or-later", "AGPL-3.0-only", "AGPL-3.0-or-later"}
+
+# Known CVE-affected package versions (lightweight built-in list)
+KNOWN_CVES = {
+    "pillow": [("< 10.0.1", "CVE-2023-44271", "DoS via large TIFF")],
+    "requests": [("< 2.31.0", "CVE-2023-32681", "Session cookie leak")],
+    "cryptography": [("< 41.0.0", "CVE-2023-38325", "PKCS7 cert validation bypass")],
+    "tornado": [("< 6.3.3", "CVE-2023-28370", "Open redirect")],
+    "django": [("< 4.2.8", "CVE-2023-46695", "DoS via large file uploads")],
+    "flask": [("< 2.3.2", "CVE-2023-30861", "Session cookie on every response")],
+    "urllib3": [("< 2.0.7", "CVE-2023-45803", "Request body not stripped on redirect")],
+    "certifi": [("< 2023.7.22", "CVE-2023-37920", "Removed e-Tugra root cert")],
+    "jinja2": [("< 3.1.3", "CVE-2024-22195", "XSS via xmlattr filter")],
+    "numpy": [("< 1.22.0", "CVE-2021-34141", "Incomplete string comparison")],
+    "scipy": [("< 1.10.0", "CVE-2023-25399", "Refcount issue in Py_FindObjects")],
+    "setuptools": [("< 65.5.1", "CVE-2022-40897", "ReDoS in package_index")],
+}
+
 # ─── DATA CLASSES ─────────────────────────────────────────────────────────────
 
 LICENSE_FILES = ["LICENSE", "LICENSE.md", "LICENSE.txt", "LICENCE", "LICENCE.md",
@@ -136,6 +202,159 @@ class Fix:
     dimension: str
     points_recoverable: int
     claude_fix_hint: str
+    explanation: str = ""
+    effort_minutes: int = 0
+    effort_label: str = ""
+
+
+EFFORT_MAP = {
+    "No environment file found":                     (5,  "5 min"),
+    "unpinned dependencies":                         (5,  "5 min"),
+    "Dockerfile base image not pinned":              (2,  "2 min"),
+    "use randomness without seeding":                (2,  "2 min"),
+    "Hardcoded absolute paths":                      (15, "15 min"),
+    "No data download or preparation script found":  (30, "30 min"),
+    "raw data file(s) committed":                    (10, "10 min"),
+    "No README file found":                          (20, "20 min"),
+    "missing step-by-step run instructions":         (10, "10 min"),
+    "missing hardware requirements":                 (5,  "5 min"),
+    "missing estimated runtime":                     (2,  "2 min"),
+    "missing expected outputs":                      (5,  "5 min"),
+    "missing paper citation":                        (2,  "2 min"),
+    "No test suite found":                           (60, "1 hr"),
+    "Low test coverage":                             (30, "30 min"),
+    "No data shape/dtype assertions":                (10, "10 min"),
+    "no smoke test":                                 (15, "15 min"),
+    "No LICENSE file found":                         (1,  "1 min"),
+    "copyleft license conflict":                     (15, "15 min"),
+    "missing NOTICE file":                           (5,  "5 min"),
+    "notebook(s) have committed cell outputs":       (5,  "5 min"),
+    "copyleft packages":                             (15, "15 min"),
+    "Provenance tools detected":                     (0,  "—"),
+    "nbstripout configured":                         (0,  "—"),
+    "Experiment framework detected":                 (0,  "—"),
+}
+
+EXPLANATION_MAP = {
+    "No environment file found": (
+        "Without a requirements.txt or environment.yml, anyone trying to reproduce "
+        "your work must guess which packages and versions you used. Dependency drift "
+        "is the #1 cause of irreproducible results."
+    ),
+    "unpinned dependencies": (
+        "Unpinned dependencies (e.g. numpy>=1.20 instead of numpy==1.26.4) mean "
+        "different installs get different versions. A minor update in any dependency "
+        "can silently change your results."
+    ),
+    "Dockerfile base image not pinned": (
+        "Mutable Docker tags like python:3.12 can point to different images over time. "
+        "Pinning to a SHA digest guarantees bit-perfect environment reproduction."
+    ),
+    "use randomness without seeding": (
+        "Unseeded random calls mean every run produces different results. "
+        "Your paper's tables and figures cannot be independently verified. "
+        "A single seed line at the top of each file fixes this permanently."
+    ),
+    "Hardcoded absolute paths": (
+        "Absolute paths like /home/you/data/ break on every other machine. "
+        "Using relative paths makes the code portable and reproducible anywhere."
+    ),
+    "No data download or preparation script found": (
+        "Without a script to fetch the data, other researchers cannot obtain "
+        "the exact dataset you used. A download script with checksums ensures "
+        "data integrity across reproductions."
+    ),
+    "raw data file(s) committed": (
+        "Large binary data in git makes cloning slow and versioning unreliable. "
+        "Store data externally with checksums and a download script."
+    ),
+    "No README file found": (
+        "A README is the entry point for anyone trying to reproduce your work. "
+        "Without it, researchers must reverse-engineer your entire workflow."
+    ),
+    "missing step-by-step run instructions": (
+        "Researchers need exact commands to reproduce results. Without run "
+        "instructions, they spend hours guessing which script to run first."
+    ),
+    "missing hardware requirements": (
+        "Results can differ across hardware (CPU vs GPU, memory constraints). "
+        "Documenting hardware lets others match your setup or adjust expectations."
+    ),
+    "missing estimated runtime": (
+        "Knowing that training takes 4 hours vs. 4 days affects whether someone "
+        "attempts reproduction. Runtime estimates set realistic expectations."
+    ),
+    "missing expected outputs": (
+        "Without expected results to compare against, a researcher who runs your "
+        "code has no way to know if their reproduction succeeded."
+    ),
+    "missing paper citation": (
+        "A citation links code to the paper it supports. Without it, the "
+        "connection between repository and published results is lost."
+    ),
+    "No test suite found": (
+        "Tests verify that code changes don't break results. Without tests, "
+        "even small refactors can silently corrupt your pipeline's output."
+    ),
+    "Low test coverage": (
+        "Low test coverage means large parts of the codebase can break without "
+        "detection. Higher coverage catches regressions before they affect results."
+    ),
+    "No data shape/dtype assertions": (
+        "Shape/dtype mismatches are a common silent failure mode in ML pipelines. "
+        "Assertions catch corrupted data before it reaches the model."
+    ),
+    "no smoke test": (
+        "A smoke test that runs the full pipeline on a tiny sample catches "
+        "integration bugs that unit tests miss — the most common failure mode."
+    ),
+    "No LICENSE file found": (
+        "Without a license, your code is legally unusable by other researchers. "
+        "Adding a LICENSE file takes one minute and removes all ambiguity."
+    ),
+    "copyleft license conflict": (
+        "GPL-licensed dependencies in a permissively-licensed project create "
+        "legal uncertainty. Downstream users may unknowingly violate terms."
+    ),
+    "missing NOTICE file": (
+        "Apache-2.0 requires a NOTICE file listing third-party attributions. "
+        "Missing it technically violates the license terms."
+    ),
+    "notebook(s) have committed cell outputs": (
+        "Committed notebook outputs can leak sensitive data (API keys, patient IDs, "
+        "file paths) and bloat the repo. Clear outputs before committing."
+    ),
+    "copyleft packages": (
+        "Known copyleft-licensed packages in a permissively-licensed project may "
+        "legally require you to relicense your entire codebase under GPL."
+    ),
+    "Provenance tools detected": (
+        "Data versioning tools (DVC, Snakemake, etc.) ensure datasets are tracked, "
+        "versioned, and reproducible across machines."
+    ),
+    "nbstripout configured": (
+        "nbstripout automatically strips notebook outputs before commit, "
+        "preventing accidental data leakage and keeping diffs clean."
+    ),
+    "Experiment framework detected": (
+        "Experiment frameworks like Sacred and MLflow handle seed management, "
+        "config logging, and result tracking natively."
+    ),
+}
+
+
+def _lookup_effort(issue: str) -> tuple[int, str]:
+    for key, val in EFFORT_MAP.items():
+        if key.lower() in issue.lower():
+            return val
+    return (10, "10 min")
+
+
+def _lookup_explanation(issue: str) -> str:
+    for key, val in EXPLANATION_MAP.items():
+        if key.lower() in issue.lower():
+            return val
+    return ""
 
 
 # ─── FILE READER ──────────────────────────────────────────────────────────────
@@ -185,6 +404,23 @@ class RepoReader:
 
     def exists(self, path: str) -> bool:
         return self.read(path) is not None
+
+    def read_notebook_source(self, path: str) -> str | None:
+        """Extract concatenated source code from a .ipynb file."""
+        raw = self.read(path)
+        if not raw:
+            return None
+        try:
+            nb = json.loads(raw)
+            cells = nb.get("cells", [])
+            source_lines = []
+            for cell in cells:
+                if cell.get("cell_type") == "code":
+                    source_lines.extend(cell.get("source", []))
+                    source_lines.append("\n")
+            return "".join(source_lines)
+        except (json.JSONDecodeError, KeyError):
+            return None
 
     def _local_list(self, subdir: str, recursive: bool) -> list[str]:
         base = self.root / subdir if subdir else self.root
@@ -382,12 +618,30 @@ def score_seeds(reader: RepoReader, domain: str) -> DimScore:
         if not has_seed:
             unseeded_files.append(path)
 
-    if unseeded_files:
-        penalty = min(17, len(unseeded_files) * 4)
+    # Also check Jupyter notebooks for unseeded randomness
+    notebooks = [f for f in all_files if f.endswith(".ipynb")][:10]
+    unseeded_notebooks: list[str] = []
+    for nb_path in notebooks:
+        nb_src = reader.read_notebook_source(nb_path)
+        if not nb_src:
+            continue
+        has_random = bool(re.search(
+            r"random\.|np\.random\.|torch\.|tf\.random\.", nb_src
+        ))
+        if has_random:
+            has_seed = any(p.search(nb_src) for p in SEED_PATTERNS["py"])
+            if not has_seed:
+                unseeded_notebooks.append(nb_path)
+
+    all_unseeded = unseeded_files + unseeded_notebooks
+
+    if all_unseeded:
+        penalty = min(17, len(all_unseeded) * 4)
         dim.raw -= penalty
+        nb_note = f" (including {len(unseeded_notebooks)} notebook(s))" if unseeded_notebooks else ""
         dim.deductions.append({
-            "issue": f"{len(unseeded_files)} script(s) use randomness without seeding",
-            "files": unseeded_files[:5],
+            "issue": f"{len(all_unseeded)} script(s) use randomness without seeding{nb_note}",
+            "files": all_unseeded[:5],
             "points": penalty,
             "hint": (
                 "Add seed block at top of each file: "
@@ -397,6 +651,27 @@ def score_seeds(reader: RepoReader, domain: str) -> DimScore:
                 if domain in ("econometrics", "bioinformatics") else
                 "Add np.random.seed(42) and random.seed(42) at file top"
             ),
+        })
+
+    # Detect experiment frameworks that handle seeding natively (Sacred, MLflow, wandb)
+    seed_tools: list[str] = []
+    for path in candidates[:10]:
+        content = reader.read(path)
+        if not content:
+            continue
+        for pattern, (tool, target_dim, _bonus) in PROVENANCE_IMPORTS.items():
+            if target_dim == "seeds" and pattern in content:
+                seed_tools.append(tool)
+
+    seed_tools = list(set(seed_tools))
+    if seed_tools:
+        bonus = min(4, len(seed_tools) * 2)
+        dim.raw = min(dim.max, dim.raw + bonus)
+        dim.deductions.append({
+            "issue": f"Experiment framework detected: {', '.join(seed_tools)} (+{bonus} pts bonus)",
+            "files": [],
+            "points": -bonus,
+            "hint": f"{', '.join(seed_tools)} handles seed management natively",
         })
 
     return dim
@@ -418,6 +693,12 @@ def score_data(reader: RepoReader) -> DimScore:
         content = reader.read(path)
         if content and ABS_PATH_RE.search(content):
             abs_path_files.append(path)
+
+    # Also check notebooks for hardcoded paths
+    for nb_path in [f for f in all_files if f.endswith(".ipynb")][:10]:
+        nb_src = reader.read_notebook_source(nb_path)
+        if nb_src and ABS_PATH_RE.search(nb_src):
+            abs_path_files.append(nb_path)
 
     if abs_path_files:
         penalty = min(10, len(abs_path_files) * 5)
@@ -458,6 +739,41 @@ def score_data(reader: RepoReader) -> DimScore:
             "files": committed_data[:3],
             "points": 4,
             "hint": "Add data files to .gitignore; store in external storage with checksums",
+        })
+
+    # Provenance tool detection — award bonus (reduce deductions)
+    all_files_lower = {f.lower() for f in all_files}
+    detected_tools: list[str] = []
+    for marker, (tool, target_dim, _bonus) in PROVENANCE_TOOLS.items():
+        if target_dim != "data":
+            continue
+        if any(marker.lower() in f for f in all_files_lower):
+            detected_tools.append(tool)
+
+    # Check for .dvc directory or files
+    if any(f.endswith(".dvc") for f in all_files):
+        detected_tools.append("dvc")
+
+    detected_tools = list(set(detected_tools))
+    if detected_tools:
+        bonus = min(5, len(detected_tools) * 3)
+        dim.raw = min(dim.max, dim.raw + bonus)
+        dim.deductions.append({
+            "issue": f"Provenance tools detected: {', '.join(detected_tools)} (+{bonus} pts bonus)",
+            "files": [],
+            "points": -bonus,
+            "hint": f"Good practice: {', '.join(detected_tools)} provides data versioning and provenance tracking",
+        })
+
+    # Check for nbstripout in .gitattributes
+    gitattr = reader.read(".gitattributes")
+    if gitattr and "nbstripout" in gitattr:
+        dim.raw = min(dim.max, dim.raw + 2)
+        dim.deductions.append({
+            "issue": "nbstripout configured (+2 pts bonus)",
+            "files": [".gitattributes"],
+            "points": -2,
+            "hint": "nbstripout prevents raw data leakage via notebook output cells",
         })
 
     return dim
@@ -621,6 +937,31 @@ def score_testing(reader: RepoReader) -> DimScore:
             "hint": "Add an integration test that runs the main pipeline on a small sample",
         })
 
+    # Jupyter notebook checks
+    notebooks = [f for f in all_files if f.endswith(".ipynb")]
+    if notebooks:
+        nb_with_outputs = []
+        for nb_path in notebooks[:10]:
+            raw = reader.read(nb_path)
+            if not raw:
+                continue
+            try:
+                nb = json.loads(raw)
+                for cell in nb.get("cells", []):
+                    if cell.get("cell_type") == "code" and cell.get("outputs"):
+                        nb_with_outputs.append(nb_path)
+                        break
+            except (json.JSONDecodeError, KeyError):
+                continue
+
+        if nb_with_outputs:
+            dim.deductions.append({
+                "issue": f"{len(nb_with_outputs)} notebook(s) have committed cell outputs",
+                "files": nb_with_outputs[:3],
+                "points": 0,
+                "hint": "Clear outputs before committing (nbstripout or jupyter nbconvert --clear-output) to avoid leaking data and reduce repo size",
+            })
+
     return dim
 
 
@@ -658,19 +999,43 @@ def score_compliance(reader: RepoReader) -> DimScore:
     if repo_is_permissive:
         req_content = reader.read("requirements.txt") or ""
         pipfile_content = reader.read("Pipfile") or ""
-        deps_text = (req_content + pipfile_content).lower()
-        gpl_deps = [
-            pkg for pkg in ("gpl", "agpl", "gnu general public")
-            if pkg in deps_text
-        ]
-        if gpl_deps:
+        pyproject_content = reader.read("pyproject.toml") or ""
+        deps_text = (req_content + pipfile_content + pyproject_content).lower()
+
+        # Check for known copyleft packages by name
+        conflicting_pkgs: list[str] = []
+        for _license_type, pkg_list in KNOWN_COPYLEFT_PACKAGES.items():
+            for pkg in pkg_list:
+                if pkg.lower() in deps_text:
+                    conflicting_pkgs.append(pkg)
+
+        # Also check for explicit GPL/AGPL mentions
+        has_gpl_mention = any(
+            kw in deps_text for kw in ("gpl", "agpl", "gnu general public")
+        )
+
+        if conflicting_pkgs or has_gpl_mention:
             dim.raw -= 4
+            detail = f"Known copyleft packages: {', '.join(conflicting_pkgs)}" if conflicting_pkgs else "GPL/AGPL keywords found in dependency files"
             dim.deductions.append({
-                "issue": "Potential copyleft license conflict in dependencies",
+                "issue": f"Potential copyleft license conflict — {detail}",
                 "files": ["requirements.txt"],
                 "points": 4,
-                "hint": "GPL-licensed dependencies in a permissively-licensed project may create conflicts",
+                "hint": "GPL-licensed dependencies in a permissively-licensed project may create conflicts. Consider alternatives or add license compatibility notes.",
             })
+
+    # SPDX identifier detection in LICENSE file header
+    if license_content:
+        spdx_match = re.search(r"SPDX-License-Identifier:\s*(\S+)", license_content, re.IGNORECASE)
+        if spdx_match:
+            spdx_id = spdx_match.group(1).upper()
+            if any(s in spdx_id for s in ("GPL", "AGPL")) and repo_is_permissive:
+                dim.deductions.append({
+                    "issue": f"SPDX identifier ({spdx_id}) conflicts with permissive license body",
+                    "files": [lf for lf in LICENSE_FILES if reader.read(lf)][:1],
+                    "points": 0,
+                    "hint": "The SPDX identifier and license body disagree — clarify which applies",
+                })
 
     has_notice = "notice" in " ".join(all_files_lower)
     if license_content and "apache" in license_content and not has_notice:
@@ -709,6 +1074,7 @@ def build_fixes(
                            ("compliance", compliance)]:
         for d in dim.deductions:
             rank += 1
+            effort_min, effort_lbl = _lookup_effort(d["issue"])
             candidates.append(Fix(
                 rank=rank,
                 title=d["issue"],
@@ -716,6 +1082,9 @@ def build_fixes(
                 dimension=dim_name,
                 points_recoverable=d["points"],
                 claude_fix_hint=d["hint"],
+                explanation=_lookup_explanation(d["issue"]),
+                effort_minutes=effort_min,
+                effort_label=effort_lbl,
             ))
 
     dim_priority = {"compliance": 0, "data": 1, "seeds": 2,
@@ -756,6 +1125,10 @@ def audit(
 
     elapsed_ms = int((time.perf_counter() - t0) * 1000)
 
+    projected = min(100, total + sum(f.points_recoverable for f in fixes))
+    projected_grade = assign_grade(projected)
+    total_effort = sum(f.effort_minutes for f in fixes)
+
     result = {
         "domain": domain,
         "scores": {
@@ -768,6 +1141,13 @@ def audit(
             "total":      total,
         },
         "grade": grade,
+        "projected_score": projected,
+        "projected_grade": projected_grade,
+        "total_effort_minutes": total_effort,
+        "total_effort_label": (
+            f"~{total_effort} min" if total_effort < 60
+            else f"~{total_effort // 60}h {total_effort % 60}m"
+        ),
         "commit_sha": commit_sha,
         "trigger": trigger,
         "fixes": [asdict(f) for f in fixes],
@@ -786,6 +1166,83 @@ def audit(
     return result
 
 
+# ─── JOURNAL CHECKLISTS ──────────────────────────────────────────────────
+
+JOURNAL_CHECKLISTS = {
+    "nature": {
+        "name": "Nature Methods",
+        "url": "https://www.nature.com/nature/editorial-policies/reporting-standards",
+        "criteria": [
+            ("Code availability", lambda r: r["scores"]["env"] >= 10),
+            ("Data availability", lambda r: r["scores"]["data"] >= 10),
+            ("Software dependencies specified", lambda r: r["scores"]["env"] >= 14),
+            ("Random seeds documented", lambda r: r["scores"]["seeds"] >= 14),
+            ("Statistical methods described", lambda r: r["scores"]["docs"] >= 10),
+            ("Hardware specification", lambda r: any("hardware" not in d.get("issue", "").lower() for d in r["_deductions"].get("docs", [])) if r["_deductions"].get("docs") else True),
+            ("Expected runtime", lambda r: any("runtime" not in d.get("issue", "").lower() for d in r["_deductions"].get("docs", [])) if r["_deductions"].get("docs") else True),
+            ("Step-by-step reproduction", lambda r: r["scores"]["docs"] >= 11),
+            ("License specified", lambda r: r["scores"]["compliance"] >= 7),
+        ],
+    },
+    "neurips": {
+        "name": "NeurIPS Reproducibility Checklist",
+        "url": "https://neurips.cc/Conferences/2024/PaperInformation/PaperChecklist",
+        "criteria": [
+            ("Code submitted", lambda r: True),
+            ("Training seeds specified", lambda r: r["scores"]["seeds"] >= 14),
+            ("Dependencies pinned", lambda r: r["scores"]["env"] >= 14),
+            ("Hyperparameters documented", lambda r: r["scores"]["docs"] >= 8),
+            ("Compute requirements stated", lambda r: not any("hardware" in d.get("issue", "").lower() for d in r["_deductions"].get("docs", []))),
+            ("Expected runtime stated", lambda r: not any("runtime" in d.get("issue", "").lower() for d in r["_deductions"].get("docs", []))),
+            ("Dataset access instructions", lambda r: r["scores"]["data"] >= 10),
+            ("Error bars / confidence intervals", lambda r: r["scores"]["testing"] >= 10),
+            ("License included", lambda r: r["scores"]["compliance"] >= 7),
+        ],
+    },
+    "plos-one": {
+        "name": "PLOS ONE Data Availability",
+        "url": "https://journals.plos.org/plosone/s/data-availability",
+        "criteria": [
+            ("Data deposited in public repository", lambda r: r["scores"]["data"] >= 10),
+            ("Data download instructions", lambda r: not any("download" in d.get("issue", "").lower() for d in r["_deductions"].get("data", []))),
+            ("Code availability statement", lambda r: r["scores"]["env"] >= 7),
+            ("Software versions specified", lambda r: r["scores"]["env"] >= 14),
+            ("Analysis scripts provided", lambda r: r["scores"]["docs"] >= 11),
+            ("Reproducible statistical analysis", lambda r: r["scores"]["seeds"] >= 14),
+            ("License specified", lambda r: r["scores"]["compliance"] >= 7),
+        ],
+    },
+}
+
+
+def journal_checklist(result: dict, journal: str) -> dict:
+    spec = JOURNAL_CHECKLISTS.get(journal.lower())
+    if not spec:
+        return {"error": f"Unknown journal: {journal}. Available: {list(JOURNAL_CHECKLISTS.keys())}"}
+
+    checks = []
+    passed = 0
+    for name, test_fn in spec["criteria"]:
+        try:
+            ok = test_fn(result)
+        except Exception:
+            ok = False
+        checks.append({"criterion": name, "passed": ok})
+        if ok:
+            passed += 1
+
+    total = len(spec["criteria"])
+    return {
+        "journal": spec["name"],
+        "url": spec["url"],
+        "passed": passed,
+        "total": total,
+        "summary": f"Your repo satisfies {passed}/{total} {spec['name']} reproducibility criteria.",
+        "missing": [c["criterion"] for c in checks if not c["passed"]],
+        "checks": checks,
+    }
+
+
 # ─── CLI ─────────────────────────────────────────────────────────────────────
 
 if __name__ == "__main__":
@@ -800,6 +1257,12 @@ if __name__ == "__main__":
                         choices=["push", "tag", "slash_command", "schedule"])
     parser.add_argument("--out",    default="-",       help="Output file path (- = stdout)")
     parser.add_argument("--pretty", action="store_true", help="Pretty-print JSON")
+    parser.add_argument("--journal", default=None,
+                        choices=list(JOURNAL_CHECKLISTS.keys()),
+                        help="Check against journal reproducibility requirements")
+    parser.add_argument("--format", default="json", dest="output_format",
+                        choices=["json", "reviewdog"],
+                        help="Output format (json or reviewdog for inline PR annotations)")
     args = parser.parse_args()
 
     if args.path:
@@ -809,14 +1272,37 @@ if __name__ == "__main__":
 
     result = audit(reader, commit_sha=args.sha, trigger=args.trigger)
 
-    output = json.dumps(result, indent=2 if args.pretty else None)
-    if args.out == "-":
-        print(output)
+    if args.journal:
+        result["journal_checklist"] = journal_checklist(result, args.journal)
+
+    if args.output_format == "reviewdog":
+        diagnostics = []
+        for fix in result["fixes"]:
+            for filepath in fix.get("files", []):
+                diagnostics.append({
+                    "message": f"[SciGate] {fix['title']} ({fix['dimension']}, +{fix['points_recoverable']} pts): {fix.get('explanation', fix['claude_fix_hint'])}",
+                    "location": {"path": filepath, "range": {"start": {"line": 1}}},
+                    "severity": "WARNING",
+                })
+            if not fix.get("files"):
+                diagnostics.append({
+                    "message": f"[SciGate] {fix['title']} ({fix['dimension']}, +{fix['points_recoverable']} pts): {fix.get('explanation', fix['claude_fix_hint'])}",
+                    "location": {"path": ".", "range": {"start": {"line": 1}}},
+                    "severity": "WARNING",
+                })
+        rdjson = {"source": {"name": "scigate", "url": "https://github.com/parthassamal/SciGate"},
+                  "severity": "WARNING", "diagnostics": diagnostics}
+        print(json.dumps(rdjson))
     else:
-        Path(args.out).write_text(output)
-        print(f"Score written to {args.out}", file=sys.stderr)
-        print(
-            f"Domain: {result['domain']} | Score: {result['scores']['total']}/100 "
-            f"| Grade: {result['grade']} | {result['scan_duration_ms']}ms",
-            file=sys.stderr,
-        )
+        output = json.dumps(result, indent=2 if args.pretty else None)
+        if args.out == "-":
+            print(output)
+        else:
+            Path(args.out).write_text(output)
+            print(f"Score written to {args.out}", file=sys.stderr)
+            print(
+                f"Domain: {result['domain']} | Score: {result['scores']['total']}/100 "
+                f"| Grade: {result['grade']} | Projected: {result['projected_score']}/100 "
+                f"({result['total_effort_label']}) | {result['scan_duration_ms']}ms",
+                file=sys.stderr,
+            )

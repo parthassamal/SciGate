@@ -414,6 +414,79 @@ graph LR
 
 ---
 
+## Integrated Open-Source Tools
+
+SciGate leverages best-in-class OSS projects for deeper analysis:
+
+| Tool | Stars | Integration | Dimension |
+|---|---|---|---|
+| **nbstripout** | 1.8k | Detect git filter config → award data provenance bonus | Data Provenance |
+| **jupytext** | 6.8k | Detect config → award docs bonus; convert `.ipynb` for scanning | Documentation |
+| **DVC** | 14k | Detect `dvc.yaml` / `.dvc` files → full data-versioning points | Data Provenance |
+| **Sacred** | 4.2k | Detect Sacred imports → auto-award seed points (native seeding) | Seeds |
+| **MLflow** | — | Detect `MLproject` / imports → seed management bonus | Seeds |
+| **ReproZip** | 345 | Detect `.reprozip-trace` → full data provenance points | Data Provenance |
+| **Snakemake** | — | Detect `Snakefile` → pipeline provenance bonus | Data Provenance |
+| **reviewdog** | 8k | `--format reviewdog` output for inline PR annotations | CI Integration |
+
+### Reviewdog Integration
+
+```yaml
+# .github/workflows/scigate.yml
+- name: SciGate inline annotations
+  run: |
+    scigate audit . --format reviewdog \
+      | reviewdog -f=rdjson -reporter=github-pr-review
+```
+
+### Provenance Tool Scoring Bonuses
+
+```python
+PROVENANCE_TOOLS = {
+    "dvc.yaml":         ("dvc",       "data",  +5),
+    "Snakefile":        ("snakemake", "data",  +3),
+    ".reprozip-trace":  ("reprozip",  "data",  +5),
+    "_toc.yml":         ("jupyter-book", "docs", +3),
+}
+```
+
+---
+
+## Features
+
+| Feature | Description |
+|---|---|
+| **Explainable Scoring** | Every deduction includes a plain-English explanation of reproducibility impact |
+| **Effort Estimator** | Each fix shows estimated implementation time and projected score after applying |
+| **Journal Checklist Mode** | Check compliance against Nature Methods, NeurIPS, PLOS ONE requirements |
+| **Jupyter Notebook Awareness** | Parse `.ipynb` files for unseeded randomness, hardcoded paths, committed outputs |
+| **Score Certificate** | HTML reproducibility certificate at `/v1/certificate/{owner}/{repo}` |
+| **GitHub Actions Marketplace** | Reusable `action.yml` for any repo — threshold, journal, auto-fix |
+| **Pre-commit Hook** | `scigate install-hook` blocks commits below score threshold |
+| **Reviewdog Output** | `--format reviewdog` for inline PR annotations at exact file+line |
+| **SPDX License Detection** | Detect SPDX identifiers and flag copyleft conflicts in permissive repos |
+| **CVE Advisory Database** | Lightweight built-in CVE checks for 12+ common Python packages |
+| **Provenance Tool Bonuses** | Award bonus points for DVC, Sacred, MLflow, Snakemake, ReproZip, nbstripout |
+| **Branch URL Scanning** | Dashboard parses `owner/repo/tree/branch` URLs for branch-specific audits |
+
+---
+
+## Roadmap
+
+| Phase | Milestone |
+|---|---|
+| 3 | VS Code extension — inline score + fix suggestions |
+| 3 | Gitea self-hosted org-level app equivalent |
+| 3 | AST-based seed/path detection via tree-sitter (inspired by PurCL/RepoAudit) |
+| 4 | Automated benchmark regression detection (numeric result drift) |
+| 4 | LLM-authored methodology review (hallucination risk flagging) |
+| 5 | Public opt-in leaderboard + DOI-linked reproducibility certificates |
+| 5 | Hugging Face model card completeness scoring |
+| 5 | arXiv integration via Papers with Code API |
+| 5 | Forgejo support (Gitea hard fork — emerging standard) |
+
+---
+
 ## License
 
 MIT

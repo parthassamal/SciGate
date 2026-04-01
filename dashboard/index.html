@@ -539,6 +539,70 @@ header {
 }
 .fix-points.high { color: var(--teal); }
 .fix-points.med  { color: var(--amber); }
+.fix-explanation {
+  font-size: 11px;
+  color: var(--text3);
+  line-height: 1.5;
+  margin-top: 4px;
+  max-height: 0;
+  overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.fix-item:hover .fix-explanation,
+.fix-item.expanded .fix-explanation {
+  max-height: 80px;
+  opacity: 1;
+}
+.fix-effort {
+  font-family: var(--mono);
+  font-size: 10px;
+  color: var(--text3);
+  white-space: nowrap;
+  margin-top: 2px;
+}
+
+/* ─── PROJECTED SCORE ─── */
+.projected-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(0,201,167,0.06);
+  border: 1px solid rgba(0,201,167,0.15);
+  border-radius: 8px;
+  margin: 12px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--teal);
+}
+.projected-bar .label { color: var(--text2); font-family: var(--sans); }
+.projected-bar .effort-tag {
+  margin-left: auto;
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(245,166,35,0.12);
+  color: var(--amber);
+}
+
+/* ─── CERTIFICATE LINK ─── */
+.cert-link {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--amber);
+  text-decoration: none;
+  padding: 4px 10px;
+  border: 1px solid rgba(245,166,35,0.25);
+  border-radius: 4px;
+  background: rgba(245,166,35,0.06);
+  transition: all 0.15s;
+  margin-left: 12px;
+}
+.cert-link:hover { background: rgba(245,166,35,0.15); color: var(--amber2); }
 
 /* ─── ORG MEMORY ─── */
 .memory-item {
@@ -870,7 +934,15 @@ header {
     <span>gate <span style="color:var(--text)" id="commitGate">—</span></span>
     <span class="sep">&middot;</span>
     <span id="commitMsg">waiting for scan</span>
+    <a class="cert-link" id="certLink" href="#" target="_blank" style="display:none">Certificate</a>
     <span style="margin-left:auto" id="commitTime"></span>
+  </div>
+
+  <!-- PROJECTED SCORE -->
+  <div class="projected-bar" id="projectedBar" style="display:none">
+    <span class="label">Projected after fixes</span>
+    <span id="projectedScore">—</span> / 100
+    <span class="effort-tag" id="projectedEffort">—</span>
   </div>
 
   <!-- DIMENSIONS -->
@@ -1041,7 +1113,7 @@ function esc(s) {
 
 const STATE = {
   score: 0,
-  scores: { env: 0, seeds: 0, data: 0, docs: 0 },
+  scores: { env: 0, seeds: 0, data: 0, docs: 0, testing: 0, compliance: 0 },
   domain: '—',
   grade: '—',
   history: [],
@@ -1114,12 +1186,12 @@ function setGaugeValue(score) {
 
 function renderDimensions() {
   const dims = [
-    { key: 'env', label: 'Environment', score: STATE.scores.env, max: 17 },
-    { key: 'seeds', label: 'Random seeds', score: STATE.scores.seeds, max: 17 },
-    { key: 'data', label: 'Data provenance', score: STATE.scores.data, max: 17 },
-    { key: 'docs', label: 'Documentation', score: STATE.scores.docs, max: 17 },
-    { key: 'testing', label: 'Testing', score: STATE.scores.testing || 0, max: 17 },
-    { key: 'compliance', label: 'Compliance', score: STATE.scores.compliance || 0, max: 15 },
+    { key: 'env', label: 'Environment', score: STATE.scores.env || 0, max: 17 },
+    { key: 'seeds', label: 'Random seeds', score: STATE.scores.seeds || 0, max: 17 },
+    { key: 'data', label: 'Data provenance', score: STATE.scores.data || 0, max: 17 },
+    { key: 'docs', label: 'Documentation', score: STATE.scores.docs || 0, max: 17 },
+    { key: 'testing', label: 'Testing & validation', score: STATE.scores.testing || 0, max: 17 },
+    { key: 'compliance', label: 'License & compliance', score: STATE.scores.compliance || 0, max: 15 },
   ];
 
   dims.forEach((d, i) => {
@@ -1147,11 +1219,17 @@ function renderFixes() {
       <div class="fix-index">${String(f.rank).padStart(2, '0')}</div>
       <div class="fix-body">
         <div class="fix-title">${esc(f.title)}</div>
-        <div class="fix-file">${esc(f.files)}</div>
+        <div class="fix-file">${esc(f.files)}${f.effort ? ' · ' + esc(f.effort) : ''}</div>
+        ${f.explanation ? `<div class="fix-explanation">${esc(f.explanation)}</div>` : ''}
       </div>
-      <div class="fix-points ${f.points >= 8 ? 'high' : 'med'}">+${f.points} pts</div>
+      <div>
+        <div class="fix-points ${f.points >= 8 ? 'high' : 'med'}">+${f.points} pts</div>
+        ${f.effort ? `<div class="fix-effort">${esc(f.effort)}</div>` : ''}
+      </div>
     </div>
   `).join('');
+  document.getElementById('fixBadge').textContent =
+    STATE.fixes.length ? STATE.fixes.length + ' fixes · ranked by ROI' : 'no fixes needed';
 }
 
 function renderMemory() {
@@ -1293,11 +1371,17 @@ function applyResult(data) {
   STATE.grade = data.grade || s.grade || getGrade(STATE.score).label;
   STATE.domain = data.domain || s.field || STATE.domain;
   STATE.scores = {
-    env:   s.env   ?? STATE.scores.env,
-    seeds: s.seeds ?? STATE.scores.seeds,
-    data:  s.data  ?? STATE.scores.data,
-    docs:  s.docs  ?? STATE.scores.docs,
+    env:        s.env        ?? STATE.scores.env,
+    seeds:      s.seeds      ?? STATE.scores.seeds,
+    data:       s.data       ?? STATE.scores.data,
+    docs:       s.docs       ?? STATE.scores.docs,
+    testing:    s.testing    ?? STATE.scores.testing ?? 0,
+    compliance: s.compliance ?? STATE.scores.compliance ?? 0,
   };
+  STATE.projectedScore = data.projected_score ?? STATE.score;
+  STATE.projectedGrade = data.projected_grade ?? STATE.grade;
+  STATE.totalEffort    = data.total_effort_label ?? '';
+
   if (data.fixes && data.fixes.length) {
     STATE.fixes = data.fixes.map((f, i) => ({
       rank: f.rank || i + 1,
@@ -1305,6 +1389,8 @@ function applyResult(data) {
       files: Array.isArray(f.files) ? f.files.join(', ') : (f.files || ''),
       points: f.points_recoverable || f.points || 0,
       dim: f.dimension || 'data',
+      explanation: f.explanation || '',
+      effort: f.effort_label || '',
     }));
   }
 
@@ -1332,6 +1418,26 @@ function applyResult(data) {
   document.getElementById('commitGate').style.color = STATE.score >= 75 ? 'var(--teal)' : 'var(--red)';
   document.getElementById('commitTime').textContent = new Date().toLocaleTimeString();
   document.getElementById('commitMsg').textContent = STATE.score + '/100';
+
+  // Projected score bar
+  const projBar = document.getElementById('projectedBar');
+  if (STATE.projectedScore > STATE.score) {
+    projBar.style.display = 'flex';
+    document.getElementById('projectedScore').textContent = STATE.projectedScore;
+    document.getElementById('projectedEffort').textContent = STATE.totalEffort || '—';
+  } else {
+    projBar.style.display = 'none';
+  }
+
+  // Certificate link
+  const certLink = document.getElementById('certLink');
+  const repoSlug = (data.repo?.owner && data.repo?.name)
+    ? `${data.repo.owner}/${data.repo.name}`
+    : document.getElementById('repoName').textContent.trim();
+  if (repoSlug && repoSlug !== 'your-repo') {
+    certLink.href = `/v1/certificate/${repoSlug}`;
+    certLink.style.display = 'inline-flex';
+  }
 
   if (data.memory && data.memory.top_patterns) {
     STATE.memory = data.memory.top_patterns.map(p => ({
@@ -1387,7 +1493,7 @@ async function runScan() {
         ? { local_path: localPath }
         : { github_repo: githubRepo, ref: ref };
 
-      const resp = await fetch('/scan', {
+      const resp = await fetch('/v1/scan', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(body),
@@ -1452,7 +1558,7 @@ function showHistory() {
 
 async function fetchMemory() {
   try {
-    const resp = await fetch('/leaderboard');
+    const resp = await fetch('/v1/leaderboard');
     if (!resp.ok) return;
     const data = await resp.json();
     if (data.top_patterns && data.top_patterns.length) {
@@ -1476,7 +1582,7 @@ async function fetchMemory() {
 async function fetchActivity(repo) {
   if (!repo) return;
   try {
-    const resp = await fetch(`/activity/${repo}?limit=8`);
+    const resp = await fetch(`/v1/activity/${repo}?limit=8`);
     if (!resp.ok) return;
     const data = await resp.json();
     renderActivity(data);
@@ -1531,7 +1637,7 @@ function renderActivity(data) {
 async function fetchDependencies(repoOrPath, isLocal) {
   try {
     const body = isLocal ? { local_path: repoOrPath } : { github_repo: repoOrPath };
-    const resp = await fetch('/dependencies', {
+    const resp = await fetch('/v1/dependencies', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(body),
@@ -1607,7 +1713,7 @@ async function fetchJenkins() {
     }
 
     const jobName = document.getElementById('repoInput').value.trim().replace(/\//g, '-') || 'scigate';
-    const resp = await fetch(`/jenkins/${jobName}`);
+    const resp = await fetch(`/v1/ci/jenkins/${jobName}`);
     if (!resp.ok) return;
     const data = await resp.json();
     renderJenkins(data);

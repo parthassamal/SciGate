@@ -11,11 +11,29 @@
   {
     "repo": "SciGate",
     "domain": "ml-training",
-    "latest_score": 73,
+    "latest_score": 75,
     "best_score": 75,
     "trend": "stable",
-    "last_scanned": "2026-04-01T16:58:34.887863+00:00",
-    "scan_count": 7
+    "last_scanned": "2026-04-01T17:22:06.977350+00:00",
+    "scan_count": 8
+  },
+  {
+    "repo": "parthassamal/SciGate",
+    "domain": "bioinformatics",
+    "latest_score": 73,
+    "best_score": 73,
+    "trend": "stable",
+    "last_scanned": "2026-04-01T21:50:52.078706+00:00",
+    "scan_count": 1
+  },
+  {
+    "repo": "parthassamal/paramount-media-ops-mcp",
+    "domain": "ml-training",
+    "latest_score": 65,
+    "best_score": 65,
+    "trend": "stable",
+    "last_scanned": "2026-04-01T21:59:27.728456+00:00",
+    "scan_count": 1
   },
   {
     "repo": "octocat/Hello-World",

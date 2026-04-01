@@ -1,0 +1,128 @@
+name: 'SciGate Reproducibility Audit'
+description: 'Score scientific code reproducibility (0-100) across 6 dimensions and optionally auto-fix with Claude'
+author: 'parthassamal'
+
+branding:
+  icon: 'shield'
+  color: 'blue'
+
+inputs:
+  threshold:
+    description: 'Minimum score to pass the gate (0-100)'
+    required: false
+    default: '75'
+  anthropic_api_key:
+    description: 'Anthropic API key for Claude fix generation (optional)'
+    required: false
+  github_token:
+    description: 'GitHub token for PR creation and commit status'
+    required: false
+    default: ${{ github.token }}
+  path:
+    description: 'Path to scan (defaults to repo root)'
+    required: false
+    default: '.'
+  journal:
+    description: 'Journal checklist to validate against (nature, neurips, plos-one)'
+    required: false
+  reviewdog:
+    description: 'Enable reviewdog inline PR annotations (requires reviewdog installed)'
+    required: false
+    default: 'false'
+  fail_on_gate:
+    description: 'Fail the action if score is below threshold'
+    required: false
+    default: 'true'
+
+outputs:
+  score:
+    description: 'Reproducibility score (0-100)'
+  grade:
+    description: 'Grade (EXCELLENT, GOOD, FAIR, POOR, CRITICAL)'
+  projected_score:
+    description: 'Projected score after applying all fixes'
+  report:
+    description: 'Path to the JSON report file'
+
+runs:
+  using: 'composite'
+  steps:
+    - name: Set up Python
+      uses: actions/setup-python@v5
+      with:
+        python-version: '3.12'
+
+    - name: Install SciGate
+      shell: bash
+      run: |
+        pip install httpx pyyaml pathspec toml gitpython
+
+    - name: Run audit
+      id: audit
+      shell: bash
+      env:
+        SCIGATE_THRESHOLD: ${{ inputs.threshold }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        EXTRA_ARGS=""
+        if [ -n "${{ inputs.journal }}" ]; then
+          EXTRA_ARGS="--journal ${{ inputs.journal }}"
+        fi
+
+        python ${{ github.action_path }}/agents/audit_agent.py \
+          --path ${{ inputs.path }} \
+          --pretty \
+          --out scigate-report.json \
+          $EXTRA_ARGS
+
+        SCORE=$(python3 -c "import json; print(json.load(open('scigate-report.json'))['scores']['total'])")
+        GRADE=$(python3 -c "import json; print(json.load(open('scigate-report.json'))['grade'])")
+        PROJECTED=$(python3 -c "import json; print(json.load(open('scigate-report.json'))['projected_score'])")
+
+        echo "score=$SCORE" >> "$GITHUB_OUTPUT"
+        echo "grade=$GRADE" >> "$GITHUB_OUTPUT"
+        echo "projected_score=$PROJECTED" >> "$GITHUB_OUTPUT"
+        echo "report=scigate-report.json" >> "$GITHUB_OUTPUT"
+
+        echo "### SciGate Reproducibility Score" >> "$GITHUB_STEP_SUMMARY"
+        echo "" >> "$GITHUB_STEP_SUMMARY"
+        echo "| Metric | Value |" >> "$GITHUB_STEP_SUMMARY"
+        echo "|---|---|" >> "$GITHUB_STEP_SUMMARY"
+        echo "| **Score** | $SCORE / 100 |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| **Grade** | $GRADE |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| **Projected** | $PROJECTED / 100 (after fixes) |" >> "$GITHUB_STEP_SUMMARY"
+        echo "| **Threshold** | ${{ inputs.threshold }} |" >> "$GITHUB_STEP_SUMMARY"
+
+    - name: Reviewdog annotations
+      if: inputs.reviewdog == 'true'
+      shell: bash
+      env:
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+        REVIEWDOG_GITHUB_API_TOKEN: ${{ inputs.github_token }}
+      run: |
+        python ${{ github.action_path }}/agents/audit_agent.py \
+          --path ${{ inputs.path }} --format reviewdog \
+          | reviewdog -f=rdjson -reporter=github-pr-review -level=warning || true
+
+    - name: Run fix agent
+      if: inputs.anthropic_api_key != '' && steps.audit.outputs.score < inputs.threshold
+      shell: bash
+      env:
+        ANTHROPIC_API_KEY: ${{ inputs.anthropic_api_key }}
+        GITHUB_TOKEN: ${{ inputs.github_token }}
+      run: |
+        pip install anthropic
+        python ${{ github.action_path }}/agents/fix_agent.py \
+          --score-json scigate-report.json \
+          --repo ${{ github.repository }}
+
+    - name: Gate check
+      if: inputs.fail_on_gate == 'true'
+      shell: bash
+      run: |
+        SCORE=${{ steps.audit.outputs.score }}
+        if [ "$SCORE" -lt "${{ inputs.threshold }}" ]; then
+          echo "::error::SciGate gate BLOCKED: Score $SCORE < ${{ inputs.threshold }}. Fix reproducibility issues."
+          exit 1
+        fi
+        echo "SciGate gate PASSED: Score $SCORE >= ${{ inputs.threshold }}"

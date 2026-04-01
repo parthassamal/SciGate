@@ -414,6 +414,97 @@ async def webhook_gitea(request: Request, background_tasks: BackgroundTasks):
     return {"status": "accepted", "repo": repo, "ref": ref}
 
 
+# ─── CERTIFICATE ─────────────────────────────────────────────────────────────
+
+@app.get("/v1/certificate/{owner}/{repo}")
+def get_certificate(owner: str, repo: str):
+    """Generate an HTML reproducibility certificate for the last scan."""
+    slug = f"{owner}__{repo}".replace("/", "__")
+    history_path = Path("memory/scans") / f"{slug}.jsonl"
+    if not history_path.exists():
+        slug_alt = f"{owner}/{repo}".replace("/", "__")
+        history_path = Path("memory/scans") / f"{slug_alt}.jsonl"
+    if not history_path.exists():
+        raise HTTPException(status_code=404, detail="No scan history found")
+
+    lines = [l.strip() for l in history_path.read_text().splitlines() if l.strip()]
+    if not lines:
+        raise HTTPException(status_code=404, detail="No scans recorded")
+
+    last = json.loads(lines[-1])
+    total = last.get("total", 0)
+    grade = last.get("grade", "?")
+    domain = last.get("domain", "?")
+    ts = last.get("ts", "?")
+    sha = last.get("commit_sha", "unknown")
+
+    dim_map = {"env": 17, "seeds": 17, "data": 17, "docs": 17, "testing": 17, "compliance": 15}
+    dims_html = ""
+    for dim, mx in dim_map.items():
+        val = last.get(dim, 0)
+        status = "✓" if val >= mx * 0.8 else "△" if val >= mx * 0.4 else "✗"
+        label = {"env": "Environment", "seeds": "Seeds & Determinism", "data": "Data Provenance",
+                 "docs": "Documentation", "testing": "Testing", "compliance": "Compliance"}[dim]
+        dims_html += f"<tr><td>{status}</td><td>{label}</td><td>{val}/{mx}</td></tr>\n"
+
+    grade_color = {"EXCELLENT": "#22c55e", "GOOD": "#3b82f6", "FAIR": "#eab308",
+                   "POOR": "#f97316", "CRITICAL": "#ef4444"}.get(grade, "#888")
+
+    html = f"""<!DOCTYPE html>
+<html><head><meta charset="utf-8"><title>SciGate Certificate</title>
+<style>
+body {{ font-family: 'Georgia', serif; max-width: 700px; margin: 40px auto; padding: 40px;
+       border: 3px double #333; background: #fafaf8; }}
+h1 {{ text-align: center; font-size: 1.5em; letter-spacing: 2px; border-bottom: 2px solid #333;
+     padding-bottom: 12px; }}
+.meta {{ text-align: center; color: #555; margin: 16px 0; }}
+.score {{ text-align: center; font-size: 3em; font-weight: bold; color: {grade_color}; margin: 20px 0; }}
+.grade {{ text-align: center; font-size: 1.2em; color: {grade_color}; font-weight: bold; }}
+table {{ width: 100%; border-collapse: collapse; margin: 20px 0; }}
+td {{ padding: 8px 12px; border-bottom: 1px solid #ddd; }}
+td:first-child {{ width: 30px; text-align: center; font-size: 1.2em; }}
+td:last-child {{ text-align: right; font-family: monospace; }}
+.footer {{ text-align: center; color: #999; font-size: 0.85em; margin-top: 30px;
+           border-top: 1px solid #ddd; padding-top: 12px; }}
+@media print {{ body {{ border: none; }} }}
+</style></head><body>
+<h1>SCIGATE REPRODUCIBILITY CERTIFICATE</h1>
+<div class="meta">Repository: <strong>{owner}/{repo}</strong> &nbsp;·&nbsp; Commit: <code>{sha[:8]}</code></div>
+<div class="score">{total} / 100</div>
+<div class="grade">{grade}</div>
+<div class="meta">Domain: {domain} &nbsp;·&nbsp; Scanned: {ts[:10] if len(ts) > 10 else ts}</div>
+<table>{dims_html}</table>
+<div class="footer">
+Verified by SciGate v2.1.0<br>
+<a href="https://github.com/parthassamal/SciGate">github.com/parthassamal/SciGate</a>
+</div></body></html>"""
+
+    from fastapi.responses import HTMLResponse
+    return HTMLResponse(content=html)
+
+
+# ─── JOURNAL CHECKLIST ───────────────────────────────────────────────────────
+
+@app.post("/v1/journal-check")
+def journal_check_endpoint(req: ScanRequest, journal: str = "nature"):
+    """Run audit and check against journal reproducibility requirements."""
+    from agents.audit_agent import journal_checklist
+
+    if req.local_path:
+        path = Path(req.local_path).expanduser().resolve()
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Path not found")
+        reader = RepoReader(mode="local", path=str(path))
+    elif req.github_repo:
+        reader = RepoReader(mode="github", repo=req.github_repo, ref=req.ref)
+    else:
+        raise HTTPException(status_code=400, detail="Provide local_path or github_repo")
+
+    result = audit(reader, commit_sha=req.commit_sha, trigger=req.trigger)
+    checklist = journal_checklist(result, journal)
+    return {**result, "journal_checklist": checklist}
+
+
 # ─── DASHBOARD SERVING ───────────────────────────────────────────────────────
 
 @app.get("/")

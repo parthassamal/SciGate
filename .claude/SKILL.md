@@ -1,6 +1,6 @@
 ---
 name: scigate
-version: 2.1.0
+version: 2.2.0
 description: |
   Invoke for any SciGate file across agents/, api/, dashboard/, workers/,
   integrations/, policy/, or infra/. Loads the full domain classification
@@ -555,14 +555,29 @@ python -m scigate.cli scan ./my-repo --threshold 75
 
 ---
 
-## 17. Roadmap
+## 17. Integrated OSS Tools
+
+| Tool | Integration | Scoring Dimension |
+|---|---|---|
+| nbstripout (1.8k stars) | Detect git filter → data provenance bonus | Data Provenance |
+| jupytext (6.8k stars) | Detect config → docs bonus | Documentation |
+| DVC (14k stars) | Detect dvc.yaml/.dvc → data-versioning points | Data Provenance |
+| Sacred (4.2k stars) | Detect imports → auto seed points | Seeds |
+| MLflow | Detect MLproject → seed mgmt bonus | Seeds |
+| ReproZip (345 stars) | Detect .reprozip-trace → provenance bonus | Data Provenance |
+| Snakemake | Detect Snakefile → pipeline bonus | Data Provenance |
+| reviewdog (8k stars) | --format reviewdog for inline PR annotations | CI Integration |
+
+## 18. Roadmap
 
 | Phase | Milestone |
 |---|---|
 | 3 | VS Code extension — inline score + fix suggestions |
 | 3 | Gitea self-hosted org-level GitHub App equivalent |
+| 3 | AST-based seed/path detection via tree-sitter (PurCL/RepoAudit pattern) |
 | 4 | Automated benchmark regression detection (numeric result drift) |
 | 4 | LLM-authored methodology review (hallucination risk flagging) |
 | 5 | Public opt-in leaderboard + DOI-linked reproducibility certificates |
 | 5 | Hugging Face model card completeness scoring |
+| 5 | arXiv integration via Papers with Code API |
 | 5 | Forgejo support (Gitea hard fork — emerging standard) |
