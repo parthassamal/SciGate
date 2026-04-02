@@ -18,6 +18,15 @@
     "scan_count": 8
   },
   {
+    "repo": "",
+    "domain": "ml-training",
+    "latest_score": 75,
+    "best_score": 75,
+    "trend": "stable",
+    "last_scanned": "2026-04-02T00:10:43.869085+00:00",
+    "scan_count": 3
+  },
+  {
     "repo": "parthassamal/SciGate",
     "domain": "bioinformatics",
     "latest_score": 73,
@@ -32,8 +41,8 @@
     "latest_score": 65,
     "best_score": 65,
     "trend": "stable",
-    "last_scanned": "2026-04-01T21:59:27.728456+00:00",
-    "scan_count": 1
+    "last_scanned": "2026-04-01T23:54:15.561760+00:00",
+    "scan_count": 2
   },
   {
     "repo": "octocat/Hello-World",

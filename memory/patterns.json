@@ -3,26 +3,28 @@
     "id": "bc3ae61c3d1e",
     "description": "Hardcoded absolute paths in 2 file(s)",
     "dimension": "data",
-    "count": 8,
+    "count": 11,
     "repos": [
-      "SciGate"
+      "SciGate",
+      ""
     ],
     "alert": true,
     "first_seen": "2026-04-01T14:27:19.887079+00:00",
-    "last_seen": "2026-04-01T17:22:06.976537+00:00"
+    "last_seen": "2026-04-02T00:10:43.868722+00:00"
   },
   "98df32c6726d": {
     "id": "98df32c6726d",
     "description": "10 unpinned dependencies in requirements.txt",
     "dimension": "env",
-    "count": 9,
+    "count": 12,
     "repos": [
       "SciGate",
-      "parthassamal/SciGate"
+      "parthassamal/SciGate",
+      ""
     ],
     "alert": true,
     "first_seen": "2026-04-01T14:27:19.887091+00:00",
-    "last_seen": "2026-04-01T21:50:52.077297+00:00"
+    "last_seen": "2026-04-02T00:10:43.868728+00:00"
   },
   "02a7f50f7ce7": {
     "id": "02a7f50f7ce7",
@@ -40,28 +42,29 @@
     "id": "820066a35241",
     "description": "4 raw data file(s) committed to repo",
     "dimension": "data",
-    "count": 7,
+    "count": 10,
     "repos": [
-      "SciGate"
+      "SciGate",
+      ""
     ],
     "alert": true,
     "first_seen": "2026-04-01T14:46:14.736686+00:00",
-    "last_seen": "2026-04-01T17:22:06.976547+00:00"
+    "last_seen": "2026-04-02T00:10:43.868731+00:00"
   },
   "bd4528da76e4": {
     "id": "bd4528da76e4",
     "description": "No data download or preparation script found",
     "dimension": "data",
-    "count": 4,
+    "count": 5,
     "repos": [
       "pallets/flask",
       "octocat/Hello-World",
       "parthassamal/SciGate",
       "parthassamal/paramount-media-ops-mcp"
     ],
-    "alert": false,
+    "alert": true,
     "first_seen": "2026-04-01T15:10:31.408691+00:00",
-    "last_seen": "2026-04-01T21:59:27.728013+00:00"
+    "last_seen": "2026-04-01T23:54:15.561208+00:00"
   },
   "8fb187dadb91": {
     "id": "8fb187dadb91",
@@ -79,7 +82,7 @@
     "id": "80f662c107cd",
     "description": "README missing paper citation or reference",
     "dimension": "docs",
-    "count": 7,
+    "count": 8,
     "repos": [
       "pallets/flask",
       "SciGate",
@@ -88,19 +91,20 @@
     ],
     "alert": true,
     "first_seen": "2026-04-01T15:10:31.408722+00:00",
-    "last_seen": "2026-04-01T21:59:27.728033+00:00"
+    "last_seen": "2026-04-01T23:54:15.561226+00:00"
   },
   "314e5f97c1ca": {
     "id": "314e5f97c1ca",
     "description": "Low test coverage: 30 test files vs 2351 source files",
     "dimension": "testing",
-    "count": 5,
+    "count": 8,
     "repos": [
-      "SciGate"
+      "SciGate",
+      ""
     ],
     "alert": true,
     "first_seen": "2026-04-01T15:33:30.541953+00:00",
-    "last_seen": "2026-04-01T17:22:06.976550+00:00"
+    "last_seen": "2026-04-02T00:10:43.868734+00:00"
   },
   "a20f06824c7f": {
     "id": "a20f06824c7f",
@@ -226,48 +230,48 @@
     "id": "f1ff68b5fc81",
     "description": "3 script(s) use randomness without seeding",
     "dimension": "seeds",
-    "count": 1,
+    "count": 2,
     "repos": [
       "parthassamal/paramount-media-ops-mcp"
     ],
     "alert": false,
     "first_seen": "2026-04-01T21:59:27.727998+00:00",
-    "last_seen": "2026-04-01T21:59:27.728008+00:00"
+    "last_seen": "2026-04-01T23:54:15.561196+00:00"
   },
   "999570a5c0c7": {
     "id": "999570a5c0c7",
     "description": "21 unpinned dependencies in requirements.txt",
     "dimension": "env",
-    "count": 1,
+    "count": 2,
     "repos": [
       "parthassamal/paramount-media-ops-mcp"
     ],
     "alert": false,
     "first_seen": "2026-04-01T21:59:27.728017+00:00",
-    "last_seen": "2026-04-01T21:59:27.728020+00:00"
+    "last_seen": "2026-04-01T23:54:15.561216+00:00"
   },
   "f26bc6f7b5ea": {
     "id": "f26bc6f7b5ea",
     "description": "6 raw data file(s) committed to repo",
     "dimension": "data",
-    "count": 1,
+    "count": 2,
     "repos": [
       "parthassamal/paramount-media-ops-mcp"
     ],
     "alert": false,
     "first_seen": "2026-04-01T21:59:27.728023+00:00",
-    "last_seen": "2026-04-01T21:59:27.728026+00:00"
+    "last_seen": "2026-04-01T23:54:15.561220+00:00"
   },
   "ceda708e2af6": {
     "id": "ceda708e2af6",
     "description": "No data shape/dtype assertions found before model calls",
     "dimension": "testing",
-    "count": 1,
+    "count": 2,
     "repos": [
       "parthassamal/paramount-media-ops-mcp"
     ],
     "alert": false,
     "first_seen": "2026-04-01T21:59:27.728028+00:00",
-    "last_seen": "2026-04-01T21:59:27.728031+00:00"
+    "last_seen": "2026-04-01T23:54:15.561223+00:00"
   }
 }

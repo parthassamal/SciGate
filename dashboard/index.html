@@ -585,6 +585,130 @@ header {
   background: rgba(245,166,35,0.12);
   color: var(--amber);
 }
+.projected-bar .proj-grade {
+  font-family: var(--display);
+  font-size: 10px;
+  font-weight: 600;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+/* ─── JOURNAL CHECKLIST ─── */
+.journal-bar {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin: 12px 0 0;
+}
+.journal-select {
+  background: var(--bg3);
+  border: 1px solid var(--border2);
+  border-radius: 6px;
+  padding: 6px 10px;
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text);
+  outline: none;
+}
+.journal-select:focus { border-color: var(--amber); }
+.journal-btn {
+  font-family: var(--sans);
+  font-size: 11px;
+  font-weight: 500;
+  padding: 6px 12px;
+  border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent;
+  color: var(--text2);
+  cursor: pointer;
+  transition: all 0.15s;
+}
+.journal-btn:hover { background: var(--bg3); color: var(--text); }
+.journal-results {
+  margin-top: 8px;
+  font-size: 12px;
+}
+.journal-item {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 0;
+}
+.journal-pass { color: var(--teal); }
+.journal-fail { color: var(--red); }
+
+/* ─── REGRESSION BANNER ─── */
+.regression-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255,94,94,0.06);
+  border: 1px solid rgba(255,94,94,0.2);
+  border-radius: 8px;
+  margin: 8px 0 0;
+  font-family: var(--mono);
+  font-size: 12px;
+  color: var(--red2);
+}
+.regression-bar .label { color: var(--text2); font-family: var(--sans); }
+
+/* ─── HISTORY MODAL ─── */
+.history-overlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.6);
+  z-index: 100;
+  display: none;
+  align-items: center;
+  justify-content: center;
+}
+.history-overlay.open { display: flex; }
+.history-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 12px;
+  padding: 24px;
+  min-width: 400px;
+  max-width: 600px;
+  max-height: 80vh;
+  overflow-y: auto;
+}
+.history-modal h3 {
+  font-family: var(--display);
+  font-size: 14px;
+  font-weight: 700;
+  margin-bottom: 16px;
+  color: var(--text);
+}
+.history-row {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.history-row:last-child { border-bottom: none; }
+.history-score {
+  font-family: var(--mono);
+  font-weight: 700;
+  min-width: 36px;
+}
+.history-ts {
+  color: var(--text3);
+  font-family: var(--mono);
+  font-size: 10px;
+  margin-left: auto;
+}
+.history-close {
+  float: right;
+  background: none;
+  border: none;
+  color: var(--text3);
+  font-size: 18px;
+  cursor: pointer;
+}
 
 /* ─── CERTIFICATE LINK ─── */
 .cert-link {
@@ -929,6 +1053,8 @@ header {
     <span>domain</span>
     <span class="commit-sha" id="commitDomain">—</span>
     <span class="sep">&middot;</span>
+    <span>commit <span class="commit-sha" id="commitSha">—</span></span>
+    <span class="sep">&middot;</span>
     <span>grade <span style="color:var(--text)" id="commitGrade">—</span></span>
     <span class="sep">&middot;</span>
     <span>gate <span style="color:var(--text)" id="commitGate">—</span></span>
@@ -942,7 +1068,14 @@ header {
   <div class="projected-bar" id="projectedBar" style="display:none">
     <span class="label">Projected after fixes</span>
     <span id="projectedScore">—</span> / 100
+    <span class="proj-grade" id="projectedGrade"></span>
     <span class="effort-tag" id="projectedEffort">—</span>
+  </div>
+
+  <!-- REGRESSION BANNER -->
+  <div class="regression-bar" id="regressionBar" style="display:none">
+    <span class="label">Regression detected</span>
+    <span id="regressionMsg">—</span>
   </div>
 
   <!-- DIMENSIONS -->
@@ -1053,17 +1186,29 @@ header {
       </div>
     </div>
 
-    <!-- JENKINS STATUS -->
+    <!-- CI STATUS -->
     <div class="panel tracker-panel">
       <div class="panel-header">
-        <div class="panel-title">Jenkins</div>
-        <div class="panel-badge" id="jenkinsBadge">not configured</div>
+        <div class="panel-title">CI status</div>
+        <div class="panel-badge" id="ciBadge">not configured</div>
       </div>
-      <div id="jenkinsList" class="tracker-list">
-        <div class="tracker-empty">Set JENKINS_URL to enable</div>
+      <div id="ciList" class="tracker-list">
+        <div class="tracker-empty">Configure CI provider env vars to enable</div>
       </div>
     </div>
 
+  </div>
+
+  <!-- JOURNAL CHECKLIST -->
+  <div class="journal-bar" id="journalBar">
+    <select class="journal-select" id="journalSelect">
+      <option value="">Journal checklist</option>
+      <option value="nature">Nature Methods</option>
+      <option value="neurips">NeurIPS</option>
+      <option value="plos-one">PLOS ONE</option>
+    </select>
+    <button class="journal-btn" onclick="runJournalCheck()">Check</button>
+    <div class="journal-results" id="journalResults"></div>
   </div>
 
   <!-- BADGE -->
@@ -1100,6 +1245,15 @@ header {
 
 </div>
 
+<!-- HISTORY MODAL -->
+<div class="history-overlay" id="historyOverlay" onclick="if(event.target===this)closeHistory()">
+  <div class="history-modal">
+    <button class="history-close" onclick="closeHistory()">&times;</button>
+    <h3>Score History</h3>
+    <div id="historyContent">No history available.</div>
+  </div>
+</div>
+
 <script>
 // ─── UTILS ───────────────────────────────────────────────────────────────────
 
@@ -1124,7 +1278,9 @@ const STATE = {
   scanning: false,
 };
 
-const GATE_THRESHOLD = 75;
+let GATE_THRESHOLD = 75;
+let LAST_REPO_SLUG = null;
+let LAST_SCAN_REF = 'main';
 
 const GRADE_MAP = [
   [90, 'EXCELLENT', 'brightgreen'],
@@ -1263,24 +1419,25 @@ function renderGate() {
   const sub = document.getElementById('gateSub');
   const thresh = document.getElementById('gateThreshold');
   const s = STATE.score;
+  const t = GATE_THRESHOLD;
 
-  if (s >= GATE_THRESHOLD) {
+  if (s >= t) {
     panel.classList.add('cleared');
     icon.className = 'gate-icon clear';
     icon.innerHTML = '&#10003;';
     title.className = 'gate-title cleared';
-    title.textContent = 'Submission tag cleared';
-    sub.textContent = `Score meets the 75-point threshold. Tagging a v*-submission release will proceed.`;
-    thresh.innerHTML = `Threshold: 75 / 100<br><span style="color:var(--teal);font-size:11px">Cleared by ${s - 75} points</span>`;
+    title.textContent = 'Merge gate cleared';
+    sub.textContent = `Score meets the ${t}-point threshold.`;
+    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--teal);font-size:11px">Cleared by ${s - t} points</span>`;
   } else {
     panel.classList.remove('cleared');
     icon.className = 'gate-icon blocked';
     icon.innerHTML = '&times;';
     title.className = 'gate-title blocked';
-    title.textContent = 'Submission tag blocked';
+    title.textContent = 'Merge gate blocked';
     const topFix = STATE.fixes[0];
-    sub.textContent = `Score ${s} is below the 75-point threshold.${topFix ? ` Claude\u2019s top fix recovers ${topFix.points} points.` : ''}`;
-    thresh.innerHTML = `Threshold: 75 / 100<br><span style="color:var(--red2);font-size:11px">&minus;${75 - s} points needed</span>`;
+    sub.textContent = `Score ${s} is below the ${t}-point threshold.${topFix ? ` Top fix recovers +${topFix.points} pts.` : ''}`;
+    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--red2);font-size:11px">&minus;${t - s} points needed</span>`;
   }
 }
 
@@ -1411,22 +1568,39 @@ function applyResult(data) {
   STATE.history.push(STATE.score);
   if (STATE.history.length > 8) STATE.history.shift();
 
+  // Use gate threshold from API if available
+  if (data.gate_threshold != null) GATE_THRESHOLD = data.gate_threshold;
+  const gateBlocked = data.gate_blocked ?? (STATE.score < GATE_THRESHOLD);
+
   document.getElementById('domainTag').textContent = STATE.domain;
   document.getElementById('commitDomain').textContent = STATE.domain;
+  document.getElementById('commitSha').textContent = data.commit_sha ? data.commit_sha.substring(0, 7) : '—';
   document.getElementById('commitGrade').textContent = STATE.grade;
-  document.getElementById('commitGate').textContent = STATE.score >= 75 ? 'CLEAR' : 'BLOCKED';
-  document.getElementById('commitGate').style.color = STATE.score >= 75 ? 'var(--teal)' : 'var(--red)';
+  document.getElementById('commitGate').textContent = gateBlocked ? 'BLOCKED' : 'CLEAR';
+  document.getElementById('commitGate').style.color = gateBlocked ? 'var(--red)' : 'var(--teal)';
   document.getElementById('commitTime').textContent = new Date().toLocaleTimeString();
   document.getElementById('commitMsg').textContent = STATE.score + '/100';
 
-  // Projected score bar
+  // Projected score bar — show whenever there are recoverable points
   const projBar = document.getElementById('projectedBar');
-  if (STATE.projectedScore > STATE.score) {
+  if (STATE.totalEffort || STATE.projectedScore > STATE.score) {
     projBar.style.display = 'flex';
     document.getElementById('projectedScore').textContent = STATE.projectedScore;
+    document.getElementById('projectedGrade').textContent = STATE.projectedGrade || '';
     document.getElementById('projectedEffort').textContent = STATE.totalEffort || '—';
   } else {
     projBar.style.display = 'none';
+  }
+
+  // Regression banner
+  const regBar = document.getElementById('regressionBar');
+  if (data.regression && data.regression.regression_detected) {
+    regBar.style.display = 'flex';
+    const delta = data.regression.score_delta || 0;
+    document.getElementById('regressionMsg').textContent =
+      `Score dropped ${Math.abs(delta)} pts from previous scan (${data.regression.previous_score || '?'} → ${STATE.score})`;
+  } else {
+    regBar.style.display = 'none';
   }
 
   // Certificate link
@@ -1437,17 +1611,18 @@ function applyResult(data) {
   if (repoSlug && repoSlug !== 'your-repo') {
     certLink.href = `/v1/certificate/${repoSlug}`;
     certLink.style.display = 'inline-flex';
+    LAST_REPO_SLUG = repoSlug;
   }
 
+  // Memory from scan response (don't clobber later with fetchMemory)
   if (data.memory && data.memory.top_patterns) {
     STATE.memory = data.memory.top_patterns.map(p => ({
       freq: p.count || 0,
-      pattern: p.description || p.pattern_id || 'Unknown',
+      pattern: p.description || p.id || 'Unknown',
       repos: (p.repos || []).slice(0, 3).join(' · ') + ((p.repos || []).length > 3 ? ` +${p.repos.length - 3}` : ''),
       trend: 'up',
       delta: `${(p.repos || []).length} repo${(p.repos || []).length !== 1 ? 's' : ''}`,
     }));
-    renderMemory();
     document.getElementById('memBadge').textContent = (data.memory.top_patterns.length || 0) + ' patterns';
   }
 
@@ -1476,11 +1651,16 @@ async function runScan() {
       let cleaned = raw.replace(/^https?:\/\/(www\.)?github\.com\//, '');
       cleaned = cleaned.replace(/\.git$/, '').replace(/\/$/, '');
       cleaned = cleaned.replace(/^\/+/, '');
-      const treeParts = cleaned.match(/^([^/]+\/[^/]+)\/(?:tree|pull)\/(.+)/);
+      const treeParts = cleaned.match(/^([^/]+\/[^/]+)\/tree\/(.+)/);
+      const prParts = cleaned.match(/^([^/]+\/[^/]+)\/pull\/(\d+)/);
       if (treeParts) {
         githubRepo = treeParts[1];
         ref = treeParts[2].split('/')[0];
         repoLabel = githubRepo.replace(/\//g, ' / ') + ' @ ' + ref;
+      } else if (prParts) {
+        githubRepo = prParts[1];
+        ref = 'main';
+        repoLabel = githubRepo.replace(/\//g, ' / ') + ' PR #' + prParts[2];
       } else {
         const slashParts = cleaned.split('/');
         githubRepo = slashParts.slice(0, 2).join('/');
@@ -1489,6 +1669,7 @@ async function runScan() {
     }
 
     try {
+      LAST_SCAN_REF = ref;
       const body = localPath
         ? { local_path: localPath }
         : { github_repo: githubRepo, ref: ref };
@@ -1515,7 +1696,7 @@ async function runScan() {
         } else if (localPath) {
           fetchDependencies(localPath, true);
         }
-        fetchJenkins();
+        fetchCI();
         scanEnd();
         return;
       } else {
@@ -1548,10 +1729,56 @@ function copyBadge() {
   }, 1500);
 }
 
-function showHistory() {
-  const h = STATE.history;
-  const msg = h.map((s, i) => `  Scan ${i + 1}: ${s}/100`).join('\n');
-  alert('Score History\n\n' + msg);
+async function showHistory() {
+  const overlay = document.getElementById('historyOverlay');
+  const content = document.getElementById('historyContent');
+  overlay.classList.add('open');
+
+  if (LAST_REPO_SLUG) {
+    try {
+      const slug = LAST_REPO_SLUG.replace('/', '__');
+      const resp = await fetch(`/v1/repo/${slug}/history`);
+      if (resp.ok) {
+        const data = await resp.json();
+        const entries = data.history || data.entries || [];
+        if (Array.isArray(entries) && entries.length) {
+          // Seed sparkline from server data
+          STATE.history = entries.slice(-8).map(e => e.total || e.scores?.total || 0);
+          renderSparkline();
+
+          content.innerHTML = entries.map(e => {
+            const score = e.total || e.scores?.total || 0;
+            const color = score >= 75 ? 'var(--teal)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
+            const grade = e.grade || '';
+            const ts = e.ts ? new Date(e.ts).toLocaleString() : '';
+            const sha = (e.commit_sha || '').substring(0, 7);
+            return `<div class="history-row">
+              <div class="history-score" style="color:${color}">${score}</div>
+              <div>${esc(grade)}${sha ? ' · ' + sha : ''}</div>
+              <div class="history-ts">${esc(ts)}</div>
+            </div>`;
+          }).reverse().join('');
+          return;
+        }
+      }
+    } catch {}
+  }
+
+  if (STATE.history.length) {
+    content.innerHTML = STATE.history.map((s, i) => {
+      const color = s >= 75 ? 'var(--teal)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
+      return `<div class="history-row">
+        <div class="history-score" style="color:${color}">${s}</div>
+        <div>Scan ${i + 1}</div>
+      </div>`;
+    }).join('');
+  } else {
+    content.innerHTML = '<div style="color:var(--text3);padding:12px 0">No scan history yet.</div>';
+  }
+}
+
+function closeHistory() {
+  document.getElementById('historyOverlay').classList.remove('open');
 }
 
 // ─── LIVE MEMORY FETCH ───────────────────────────────────────────────────────
@@ -1561,13 +1788,14 @@ async function fetchMemory() {
     const resp = await fetch('/v1/leaderboard');
     if (!resp.ok) return;
     const data = await resp.json();
-    if (data.top_patterns && data.top_patterns.length) {
+    // Only populate memory if scan didn't already provide patterns
+    if (!STATE.memory.length && data.top_patterns && data.top_patterns.length) {
       STATE.memory = data.top_patterns.map(p => ({
-        freq: p.count,
-        pattern: p.description,
-        repos: (p.repos || []).slice(0, 3).join(' · ') + (p.repos.length > 3 ? ` · ${p.repos.length - 3} others` : ''),
+        freq: p.count || 0,
+        pattern: p.description || p.id || 'Unknown',
+        repos: (p.repos || []).slice(0, 3).join(' · ') + ((p.repos || []).length > 3 ? ` +${(p.repos || []).length - 3}` : ''),
         trend: 'up',
-        delta: `${p.repos.length} repo${p.repos.length !== 1 ? 's' : ''}`,
+        delta: `${(p.repos || []).length} repo${(p.repos || []).length !== 1 ? 's' : ''}`,
       }));
       renderMemory();
     }
@@ -1700,64 +1928,100 @@ function renderDependencies(data) {
   el.innerHTML = html;
 }
 
-// ─── JENKINS STATUS ─────────────────────────────────────────────────────
+// ─── CI STATUS (Jenkins / Woodpecker / GHA) ─────────────────────────────
 
-async function fetchJenkins() {
-  try {
-    const healthResp = await fetch('/health');
-    if (!healthResp.ok) return;
-    const healthData = await healthResp.json();
-    if (healthData.agents?.jenkins === 'not_configured') {
-      document.getElementById('jenkinsBadge').textContent = 'not configured';
+async function fetchCI() {
+  const el = document.getElementById('ciList');
+  const badge = document.getElementById('ciBadge');
+  const providers = ['jenkins', 'woodpecker', 'gha'];
+  const jobName = document.getElementById('repoInput').value.trim().replace(/\//g, '-') || 'scigate';
+  let found = false;
+
+  for (const provider of providers) {
+    try {
+      const resp = await fetch(`/v1/ci/${provider}/${jobName}`);
+      if (!resp.ok) continue;
+      const data = await resp.json();
+      if (!data.configured) continue;
+      if (data.error) continue;
+
+      found = true;
+      const statusColors = {
+        success: 'jenkins-ok', failure: 'jenkins-fail', running: 'jenkins-run',
+        unstable: 'jenkins-run', pending: 'jenkins-run',
+      };
+      const statusIcons = {
+        success: '✓', failure: '✕', running: '⟳', unstable: '△', pending: '…',
+      };
+
+      const provLabel = provider === 'gha' ? 'GitHub Actions' : provider.charAt(0).toUpperCase() + provider.slice(1);
+      badge.textContent = `${provLabel} · ${data.status || 'unknown'}`;
+      const last = data.last_build || {};
+      const iconClass = statusColors[data.status] || 'jenkins-run';
+      const icon = statusIcons[data.status] || '?';
+
+      el.innerHTML = `
+        <div class="tracker-item">
+          <div class="tracker-icon ${iconClass}">${icon}</div>
+          <div class="tracker-body">
+            <div class="tracker-title">${esc(provLabel)}: ${data.name || jobName} #${last.number || '?'}</div>
+            <div class="tracker-meta">${last.result || 'Running'} · ${last.duration_ms ? Math.round(last.duration_ms/1000) + 's' : '?'}</div>
+          </div>
+        </div>
+      `;
       return;
-    }
+    } catch {}
+  }
 
-    const jobName = document.getElementById('repoInput').value.trim().replace(/\//g, '-') || 'scigate';
-    const resp = await fetch(`/v1/ci/jenkins/${jobName}`);
-    if (!resp.ok) return;
-    const data = await resp.json();
-    renderJenkins(data);
-  } catch {}
+  if (!found) {
+    badge.textContent = 'not configured';
+    el.innerHTML = '<div class="tracker-empty">No CI provider configured</div>';
+  }
 }
 
-function renderJenkins(data) {
-  const el = document.getElementById('jenkinsList');
-  const badge = document.getElementById('jenkinsBadge');
+// ─── JOURNAL CHECKLIST ──────────────────────────────────────────────────
 
-  if (!data.configured) {
-    badge.textContent = 'not configured';
-    el.innerHTML = '<div class="tracker-empty">Set JENKINS_URL, JENKINS_USER, JENKINS_TOKEN to enable</div>';
+async function runJournalCheck() {
+  const journal = document.getElementById('journalSelect').value;
+  const results = document.getElementById('journalResults');
+  if (!journal) { results.innerHTML = ''; return; }
+  if (!LAST_REPO_SLUG && !document.getElementById('repoInput').value.trim()) {
+    results.innerHTML = '<span style="color:var(--text3)">Scan a repo first</span>';
     return;
   }
 
-  if (data.error) {
-    badge.textContent = 'error';
-    el.innerHTML = `<div class="tracker-empty">${data.error}</div>`;
-    return;
+  results.innerHTML = '<span style="color:var(--text3)">Checking…</span>';
+
+  try {
+    const raw = document.getElementById('repoInput').value.trim();
+    const isLocal = raw.startsWith('/') || raw.startsWith('~') || raw.startsWith('.');
+    const body = isLocal ? { local_path: raw } : { github_repo: LAST_REPO_SLUG || raw, ref: LAST_SCAN_REF };
+    const resp = await fetch(`/v1/journal-check?journal=${journal}`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) {
+      results.innerHTML = '<span style="color:var(--red)">Check failed</span>';
+      return;
+    }
+    const data = await resp.json();
+    const checklist = data.journal_checklist || {};
+    const checks = checklist.checks || [];
+    if (!checks.length) {
+      results.innerHTML = '<span style="color:var(--text3)">No checklist data</span>';
+      return;
+    }
+    const summary = `<div style="margin-bottom:6px;font-weight:500;color:var(--text)">${esc(checklist.journal || journal)} — ${checklist.passed || 0}/${checklist.total || 0} passed</div>`;
+    results.innerHTML = summary + checks.map(c =>
+      `<div class="journal-item">
+        <span class="${c.passed ? 'journal-pass' : 'journal-fail'}">${c.passed ? '✓' : '✕'}</span>
+        <span>${esc(c.criterion || c.name || '')}</span>
+      </div>`
+    ).join('');
+  } catch {
+    results.innerHTML = '<span style="color:var(--red)">Check failed</span>';
   }
-
-  const statusColors = {
-    success: 'jenkins-ok', failure: 'jenkins-fail', running: 'jenkins-run',
-    unstable: 'jenkins-run', pending: 'jenkins-run',
-  };
-  const statusIcons = {
-    success: '✓', failure: '✕', running: '⟳', unstable: '△', pending: '…',
-  };
-
-  badge.textContent = data.status || 'unknown';
-  const last = data.last_build || {};
-  const iconClass = statusColors[data.status] || 'jenkins-run';
-  const icon = statusIcons[data.status] || '?';
-
-  el.innerHTML = `
-    <div class="tracker-item">
-      <div class="tracker-icon ${iconClass}">${icon}</div>
-      <div class="tracker-body">
-        <div class="tracker-title">${data.name} #${last.number || '?'}</div>
-        <div class="tracker-meta">${last.result || 'Running'} · ${last.duration_ms ? Math.round(last.duration_ms/1000) + 's' : '?'}</div>
-      </div>
-    </div>
-  `;
 }
 
 // ─── INIT ────────────────────────────────────────────────────────────────────

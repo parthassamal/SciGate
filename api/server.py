@@ -88,6 +88,10 @@ class ScanResponse(BaseModel):
     gate_blocked:  bool
     gate_threshold: int
     scan_duration_ms: int
+    projected_score:  Optional[int] = None
+    projected_grade:  Optional[str] = None
+    total_effort_label: Optional[str] = None
+    total_effort_minutes: Optional[int] = None
     fix_pr_url:    Optional[str] = None
     memory:        Optional[dict] = None
     regression:    Optional[dict] = None
