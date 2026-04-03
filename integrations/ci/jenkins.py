@@ -3,9 +3,12 @@
 from __future__ import annotations
 
 import os
+import logging
 from datetime import datetime, timezone
 
 from integrations.ci.base import CIAdapter, CIJobStatus
+
+logger = logging.getLogger("scigate.ci.jenkins")
 
 try:
     import httpx
@@ -79,7 +82,8 @@ class JenkinsCIAdapter(CIAdapter):
                 }
                 for b in r.json().get("builds", [])
             ]
-        except Exception:
+        except Exception as exc:
+            logger.warning("Jenkins build history failed for %s: %s", job_name, exc)
             return []
 
 

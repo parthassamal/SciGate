@@ -37,7 +37,7 @@ class MattermostAdapter(NotifyAdapter):
                     f"**Domain:** {event.domain} | **Fixes:** {event.fixes_count}"
                 ),
             }],
-        })
+        }, timeout=10)
 
     def supports_grade(self, grade: str) -> bool:
         return True

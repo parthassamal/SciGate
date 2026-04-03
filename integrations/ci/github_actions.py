@@ -3,8 +3,11 @@
 from __future__ import annotations
 
 import os
+import logging
 
 from integrations.ci.base import CIAdapter, CIJobStatus
+
+logger = logging.getLogger("scigate.ci.gha")
 
 try:
     import httpx
@@ -33,6 +36,9 @@ class GitHubActionsCIAdapter(CIAdapter):
         if not self.configured:
             return CIJobStatus(name=job_name, status="not_configured", configured=False,
                                error="httpx not installed")
+        if "/" not in job_name:
+            return CIJobStatus(name=job_name, status="error",
+                               error="job_name must be in 'owner/repo' format")
         try:
             r = self._http.get(
                 f"{self.base}/repos/{job_name}/actions/runs",
@@ -77,5 +83,6 @@ class GitHubActionsCIAdapter(CIAdapter):
                 }
                 for run in r.json().get("workflow_runs", [])
             ]
-        except Exception:
+        except Exception as exc:
+            logger.warning("GitHub Actions build history failed for %s: %s", job_name, exc)
             return []

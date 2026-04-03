@@ -7,6 +7,9 @@ for self-hosted deployments. YAML-native, Docker-based pipelines.
 from __future__ import annotations
 
 import os
+import logging
+
+logger = logging.getLogger("scigate.ci.woodpecker")
 
 from integrations.ci.base import CIAdapter, CIJobStatus
 
@@ -82,5 +85,6 @@ class WoodpeckerCIAdapter(CIAdapter):
                 }
                 for p in r.json()
             ]
-        except Exception:
+        except Exception as exc:
+            logger.warning("Woodpecker build history failed for %s: %s", job_name, exc)
             return []

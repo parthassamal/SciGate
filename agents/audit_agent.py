@@ -58,12 +58,6 @@ DATA_SCRIPT_PATTERNS = [
     "scripts/get_data*", "Makefile",
 ]
 
-EXPERIMENT_PATTERNS = [
-    "*train*.py", "*experiment*.py", "*eval*.py", "*run*.py",
-    "*main*.py", "*fit*.py", "*finetune*.py", "*pretrain*.py",
-    "*.R", "*.jl",
-]
-
 SEED_SKIP_PATTERNS = [
     "test_*.py", "*_test.py", "conftest.py",
     "setup.py", "setup.cfg", "__init__.py",
@@ -74,10 +68,7 @@ ABS_PATH_RE = re.compile(
     r'["\'](?:/home/|/mnt/|/root/|/Users/|/opt/|/data/|C:\\Users\\|D:\\)[^"\']{3,}["\']'
 )
 
-UNPINNED_DEP_RE = re.compile(
-    r"^([a-zA-Z][a-zA-Z0-9_\-]*)\s*(?:>=|<=|>|<|~=|!=|\^)[^=]|^([a-zA-Z][a-zA-Z0-9_\-]*)\s*$",
-    re.MULTILINE,
-)
+
 
 SEED_PATTERNS = {
     "py": [
@@ -132,17 +123,6 @@ PROVENANCE_IMPORTS = {
 }
 
 # nbstripout / jupytext detection patterns
-NOTEBOOK_TOOL_MARKERS = {
-    ".gitattributes": [
-        ("nbstripout", "filter=nbstripout"),
-        ("jupytext", "jupytext"),
-    ],
-    "pyproject.toml": [
-        ("jupytext", "[tool.jupytext]"),
-        ("nbstripout", "nbstripout"),
-    ],
-}
-
 # Known copyleft packages (common ones that cause license conflicts)
 KNOWN_COPYLEFT_PACKAGES = {
     "gpl": ["pyqt5", "pyqt6", "pygobject", "readline", "mysql-connector-python",
@@ -156,22 +136,6 @@ SPDX_PERMISSIVE = {"MIT", "Apache-2.0", "BSD-2-Clause", "BSD-3-Clause", "ISC",
                     "Unlicense", "0BSD", "CC0-1.0", "Zlib"}
 SPDX_COPYLEFT = {"GPL-2.0-only", "GPL-2.0-or-later", "GPL-3.0-only",
                   "GPL-3.0-or-later", "AGPL-3.0-only", "AGPL-3.0-or-later"}
-
-# Known CVE-affected package versions (lightweight built-in list)
-KNOWN_CVES = {
-    "pillow": [("< 10.0.1", "CVE-2023-44271", "DoS via large TIFF")],
-    "requests": [("< 2.31.0", "CVE-2023-32681", "Session cookie leak")],
-    "cryptography": [("< 41.0.0", "CVE-2023-38325", "PKCS7 cert validation bypass")],
-    "tornado": [("< 6.3.3", "CVE-2023-28370", "Open redirect")],
-    "django": [("< 4.2.8", "CVE-2023-46695", "DoS via large file uploads")],
-    "flask": [("< 2.3.2", "CVE-2023-30861", "Session cookie on every response")],
-    "urllib3": [("< 2.0.7", "CVE-2023-45803", "Request body not stripped on redirect")],
-    "certifi": [("< 2023.7.22", "CVE-2023-37920", "Removed e-Tugra root cert")],
-    "jinja2": [("< 3.1.3", "CVE-2024-22195", "XSS via xmlattr filter")],
-    "numpy": [("< 1.22.0", "CVE-2021-34141", "Incomplete string comparison")],
-    "scipy": [("< 1.10.0", "CVE-2023-25399", "Refcount issue in Py_FindObjects")],
-    "setuptools": [("< 65.5.1", "CVE-2022-40897", "ReDoS in package_index")],
-}
 
 # ─── DATA CLASSES ─────────────────────────────────────────────────────────────
 
@@ -439,7 +403,7 @@ class RepoReader:
             return None
         try:
             return full.read_text(encoding="utf-8", errors="replace")
-        except Exception:
+        except (OSError, ValueError):
             return None
 
     def _github_list(self, path: str, recursive: bool) -> list[str]:
@@ -1225,7 +1189,7 @@ def journal_checklist(result: dict, journal: str) -> dict:
     for name, test_fn in spec["criteria"]:
         try:
             ok = test_fn(result)
-        except Exception:
+        except (KeyError, TypeError, IndexError):
             ok = False
         checks.append({"criterion": name, "passed": ok})
         if ok:
@@ -1290,7 +1254,7 @@ if __name__ == "__main__":
                     "location": {"path": ".", "range": {"start": {"line": 1}}},
                     "severity": "WARNING",
                 })
-        rdjson = {"source": {"name": "scigate", "url": "https://github.com/parthassamal/SciGate"},
+        rdjson = {"source": {"name": "scigate", "url": "https://github.com/parthassamal/SciGate", "version": "2.1.0"},
                   "severity": "WARNING", "diagnostics": diagnostics}
         print(json.dumps(rdjson))
     else:

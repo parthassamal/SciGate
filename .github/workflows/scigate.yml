@@ -35,7 +35,7 @@ jobs:
           name: audit-report
           path: audit-report.json
 
-  # ── Lint & basic validation ─────────────────────────────────────────────
+  # ── Lint, compile check & tests ────────────────────────────────────────
   scigate-test:
     runs-on: ubuntu-latest
     steps:
@@ -43,7 +43,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install -e ".[dev]" 2>/dev/null || pip install httpx pyyaml pathspec toml gitpython fastapi uvicorn anthropic rich click jinja2
+      - run: pip install -r requirements.txt
       - run: python -m py_compile agents/audit_agent.py
       - run: python -m py_compile agents/fix_agent.py
       - run: python -m py_compile agents/memory_agent.py
@@ -52,6 +52,7 @@ jobs:
       - run: python -m py_compile agents/notify_agent.py
       - run: python -m py_compile api/server.py
       - run: python -m py_compile policy/loader.py
+      - run: python -m pytest tests/test_agents.py -v --tb=short
 
   # ── Agent 2: Fix (Claude) ────────────────────────────────────────────────
   scigate-fix:
@@ -88,7 +89,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
-      - run: pip install httpx
+      - run: pip install httpx filelock
       - uses: actions/download-artifact@v4
         with:
           name: audit-report
@@ -105,6 +106,7 @@ jobs:
       - uses: actions/setup-python@v5
         with:
           python-version: "3.12"
+      - run: pip install httpx filelock
       - uses: actions/download-artifact@v4
         with:
           name: audit-report

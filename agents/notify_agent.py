@@ -16,7 +16,10 @@ Usage:
 from __future__ import annotations
 
 import os
+import logging
 from typing import Any
+
+logger = logging.getLogger("scigate.notify")
 
 
 def notify(
@@ -55,7 +58,7 @@ def notify(
                 vcs.post_check(repo, sha, status, summary)
                 vcs_posted = True
         except Exception as exc:
-            print(f"[Notify] VCS check post failed: {exc}")
+            logger.warning("VCS check post failed: %s", exc)
 
     badge_url = _generate_badge_url(event)
 

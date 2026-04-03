@@ -32,9 +32,18 @@ Environment variables:
 import os
 import sys
 import json
+import logging
 import tempfile
 from pathlib import Path
 from typing import Optional, Literal
+
+_env_path = Path(__file__).parent.parent / ".env"
+if _env_path.exists():
+    for line in _env_path.read_text().splitlines():
+        line = line.strip()
+        if line and not line.startswith("#") and "=" in line:
+            k, v = line.split("=", 1)
+            os.environ.setdefault(k.strip(), v.strip())
 
 from fastapi import FastAPI, HTTPException, BackgroundTasks, Request
 from fastapi.middleware.cors import CORSMiddleware
@@ -45,7 +54,50 @@ from pydantic import BaseModel, Field
 sys.path.insert(0, str(Path(__file__).parent.parent))
 from agents.audit_agent import RepoReader, audit
 from agents.memory_agent import run as memory_run, leaderboard_summary, top_patterns
-from agents.tracker import get_activity, get_jenkins_status, get_jenkins_builds, validate_dependencies
+from agents.tracker import get_activity, validate_dependencies
+
+# ─── STRUCTURED LOGGING ──────────────────────────────────────────────────────
+
+class JSONFormatter(logging.Formatter):
+    def format(self, record):
+        entry = {
+            "ts": self.formatTime(record),
+            "level": record.levelname,
+            "agent": "server",
+            "msg": record.getMessage(),
+        }
+        if hasattr(record, "scan_id"):
+            entry["scan_id"] = record.scan_id
+        if record.exc_info and record.exc_info[1]:
+            entry["error"] = str(record.exc_info[1])
+        return json.dumps(entry)
+
+handler = logging.StreamHandler()
+handler.setFormatter(JSONFormatter())
+logger = logging.getLogger("scigate")
+logger.setLevel(logging.INFO)
+logger.addHandler(handler)
+
+# ─── ALLOWED LOCAL PATHS ─────────────────────────────────────────────────────
+
+ALLOWED_ROOTS_RAW = os.environ.get("SCIGATE_ALLOWED_ROOTS", "")
+ALLOWED_ROOTS = [
+    Path(p.strip()).resolve() for p in ALLOWED_ROOTS_RAW.split(",") if p.strip()
+] if ALLOWED_ROOTS_RAW else []
+
+
+def validate_local_path(raw_path: str) -> Path:
+    """Resolve and jail local_path to allowed root directories."""
+    resolved = Path(raw_path).expanduser().resolve()
+    if not resolved.exists() or not resolved.is_dir():
+        raise HTTPException(status_code=404, detail=f"Local path not found: {raw_path}")
+    if ALLOWED_ROOTS:
+        if not any(resolved == root or root in resolved.parents for root in ALLOWED_ROOTS):
+            raise HTTPException(
+                status_code=403,
+                detail=f"Path outside allowed roots. Set SCIGATE_ALLOWED_ROOTS env var.",
+            )
+    return resolved
 
 # ─── APP ─────────────────────────────────────────────────────────────────────
 
@@ -55,9 +107,22 @@ app = FastAPI(
     version="2.1.0",
 )
 
+# Rate limiting
+try:
+    from slowapi import Limiter, _rate_limit_exceeded_handler
+    from slowapi.util import get_remote_address
+    from slowapi.errors import RateLimitExceeded
+    limiter = Limiter(key_func=get_remote_address, default_limits=["60/minute"])
+    app.state.limiter = limiter
+    app.add_exception_handler(RateLimitExceeded, _rate_limit_exceeded_handler)
+    logger.info("Rate limiting enabled (60/min per IP)")
+except ImportError:
+    logger.info("slowapi not installed — rate limiting disabled (pip install slowapi)")
+
+CORS_ORIGINS = os.environ.get("SCIGATE_CORS_ORIGINS", "*").split(",")
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=CORS_ORIGINS,
     allow_methods=["*"],
     allow_headers=["*"],
 )
@@ -95,6 +160,8 @@ class ScanResponse(BaseModel):
     fix_pr_url:    Optional[str] = None
     memory:        Optional[dict] = None
     regression:    Optional[dict] = None
+    credentials:   Optional[dict] = None
+    repo_map:      Optional[dict] = None
 
 
 class HealthResponse(BaseModel):
@@ -135,8 +202,7 @@ def health():
 # ─── SCAN ─────────────────────────────────────────────────────────────────────
 
 @app.post("/v1/scan", response_model=ScanResponse)
-@app.post("/scan", response_model=ScanResponse, include_in_schema=False)
-def scan(req: ScanRequest, background_tasks: BackgroundTasks):
+def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
     if not req.local_path and not req.github_repo and not req.gitea_repo:
         raise HTTPException(
             status_code=422,
@@ -144,9 +210,7 @@ def scan(req: ScanRequest, background_tasks: BackgroundTasks):
         )
 
     if req.local_path:
-        path = Path(req.local_path)
-        if not path.exists() or not path.is_dir():
-            raise HTTPException(status_code=404, detail=f"Local path not found: {req.local_path}")
+        path = validate_local_path(req.local_path)
         reader = RepoReader(mode="local", path=str(path))
         repo_name = req.repo_name or path.name
     else:
@@ -157,7 +221,18 @@ def scan(req: ScanRequest, background_tasks: BackgroundTasks):
     try:
         score = audit(reader, commit_sha=req.commit_sha, trigger=req.trigger)
     except Exception as exc:
-        raise HTTPException(status_code=500, detail=f"Audit agent failed: {exc}")
+        msg = str(exc)
+        if "403" in msg and "rate limit" in msg.lower():
+            raise HTTPException(
+                status_code=429,
+                detail="GitHub API rate limit exceeded. Set GITHUB_TOKEN env var or wait ~1 hour.",
+            )
+        if "404" in msg:
+            raise HTTPException(
+                status_code=404,
+                detail=f"Repository not found or not accessible: {req.github_repo or req.gitea_repo or req.local_path}",
+            )
+        raise HTTPException(status_code=500, detail=f"Scan failed: {msg[:200]}")
 
     tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
     tmp.write(json.dumps(score))
@@ -171,19 +246,35 @@ def scan(req: ScanRequest, background_tasks: BackgroundTasks):
         if gh_repo:
             background_tasks.add_task(_run_fix_agent_bg, score_path=str(score_path), repo=gh_repo)
 
-    mem_result = None
-    try:
-        mem_result = memory_run(score, repo_name)
-    except Exception as exc:
-        print(f"[Server] Memory agent failed (non-fatal): {exc}")
-
     regression_result = None
     try:
         from agents.regression_agent import check_regression
         reg = check_regression(score, repo_name)
         regression_result = reg.to_dict()
     except Exception as exc:
-        print(f"[Server] Regression check failed (non-fatal): {exc}")
+        logger.warning("Regression check failed (non-fatal): %s", exc)
+
+    mem_result = None
+    try:
+        mem_result = memory_run(score, repo_name)
+    except Exception as exc:
+        logger.warning("Memory agent failed (non-fatal): %s", exc)
+
+    cred_result = None
+    try:
+        from agents.tracker import credential_scan
+        local = str(Path(req.local_path).resolve()) if req.local_path else ""
+        gh = req.github_repo or req.gitea_repo or ""
+        cred_result = credential_scan(reader, repo_path=local, github_repo=gh)
+    except Exception as exc:
+        logger.warning("Credential scan failed (non-fatal): %s", exc)
+
+    map_result = None
+    try:
+        from agents.tracker import generate_repo_map
+        map_result = generate_repo_map(reader)
+    except Exception as exc:
+        logger.warning("Repo map failed (non-fatal): %s", exc)
 
     background_tasks.add_task(_run_notify_bg, score, repo_name, fix_pr_url)
 
@@ -193,13 +284,14 @@ def scan(req: ScanRequest, background_tasks: BackgroundTasks):
         "fix_pr_url":  fix_pr_url,
         "memory":      mem_result,
         "regression":  regression_result,
+        "credentials": cred_result,
+        "repo_map":    map_result,
     }
 
 
 # ─── LEADERBOARD & HISTORY ──────────────────────────────────────────────────
 
 @app.get("/v1/leaderboard", response_model=LeaderboardResponse)
-@app.get("/leaderboard", response_model=LeaderboardResponse, include_in_schema=False)
 def leaderboard():
     return {
         "leaderboard":  leaderboard_summary(20),
@@ -208,7 +300,6 @@ def leaderboard():
 
 
 @app.get("/v1/repo/{repo_slug}/history")
-@app.get("/repo/{repo_slug}/history", include_in_schema=False)
 def repo_history(repo_slug: str):
     from agents.memory_agent import MEMORY_DIR
     path = MEMORY_DIR / "scans" / f"{repo_slug}.jsonl"
@@ -227,7 +318,6 @@ def repo_history(repo_slug: str):
 # ─── ACTIVITY (PRs, Commits, Code Changes) ───────────────────────────────────
 
 @app.get("/v1/activity/{owner}/{repo}")
-@app.get("/activity/{owner}/{repo}", include_in_schema=False)
 def activity(owner: str, repo: str, limit: int = 10):
     full_repo = f"{owner}/{repo}"
     try:
@@ -237,7 +327,6 @@ def activity(owner: str, repo: str, limit: int = 10):
 
 
 @app.get("/v1/activity/{owner}/{repo}/commits")
-@app.get("/activity/{owner}/{repo}/commits", include_in_schema=False)
 def activity_commits(owner: str, repo: str, limit: int = 15, branch: str = "main"):
     from agents.tracker import GitHubTracker
     tracker = GitHubTracker(f"{owner}/{repo}")
@@ -245,7 +334,6 @@ def activity_commits(owner: str, repo: str, limit: int = 15, branch: str = "main
 
 
 @app.get("/v1/activity/{owner}/{repo}/prs")
-@app.get("/activity/{owner}/{repo}/prs", include_in_schema=False)
 def activity_prs(owner: str, repo: str, limit: int = 10):
     from agents.tracker import GitHubTracker
     tracker = GitHubTracker(f"{owner}/{repo}")
@@ -253,7 +341,6 @@ def activity_prs(owner: str, repo: str, limit: int = 10):
 
 
 @app.get("/v1/activity/{owner}/{repo}/diff/{sha}")
-@app.get("/activity/{owner}/{repo}/diff/{sha}", include_in_schema=False)
 def activity_diff(owner: str, repo: str, sha: str):
     from agents.tracker import GitHubTracker
     tracker = GitHubTracker(f"{owner}/{repo}")
@@ -261,7 +348,6 @@ def activity_diff(owner: str, repo: str, sha: str):
 
 
 @app.get("/v1/activity/{owner}/{repo}/compare/{base}/{head}")
-@app.get("/activity/{owner}/{repo}/compare/{base}/{head}", include_in_schema=False)
 def activity_compare(owner: str, repo: str, base: str, head: str):
     from agents.tracker import GitHubTracker
     tracker = GitHubTracker(f"{owner}/{repo}")
@@ -295,15 +381,6 @@ def ci_builds(provider: str, job_name: str, limit: int = 10):
         raise HTTPException(status_code=500, detail=str(exc))
 
 
-@app.get("/jenkins/{job_name}", include_in_schema=False)
-def jenkins_status(job_name: str):
-    return get_jenkins_status(job_name)
-
-
-@app.get("/jenkins/{job_name}/builds", include_in_schema=False)
-def jenkins_builds(job_name: str, limit: int = 10):
-    return {"builds": get_jenkins_builds(job_name, limit)}
-
 
 # ─── DEPENDENCY VALIDATION ───────────────────────────────────────────────────
 
@@ -314,7 +391,6 @@ class DepsRequest(BaseModel):
 
 
 @app.post("/v1/dependencies")
-@app.post("/dependencies", include_in_schema=False)
 def dependencies(req: DepsRequest):
     if not req.local_path and not req.github_repo:
         raise HTTPException(status_code=422, detail="Provide local_path or github_repo")
@@ -330,6 +406,48 @@ def dependencies(req: DepsRequest):
     return validate_dependencies(reader)
 
 
+# ─── CREDENTIAL HISTORY SCAN ─────────────────────────────────────────────────
+
+@app.post("/v1/credentials")
+def credentials_endpoint(req: DepsRequest):
+    """Scan current files and commit history for leaked credentials."""
+    from agents.tracker import credential_scan
+
+    if not req.local_path and not req.github_repo:
+        raise HTTPException(status_code=422, detail="Provide local_path or github_repo")
+
+    if req.local_path:
+        path = Path(req.local_path).expanduser().resolve()
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Path not found")
+        reader = RepoReader(mode="local", path=str(path))
+        return credential_scan(reader, repo_path=str(path))
+    else:
+        reader = RepoReader(mode="github", repo=req.github_repo, ref=req.ref)
+        return credential_scan(reader, github_repo=req.github_repo)
+
+
+# ─── REPO MAP ────────────────────────────────────────────────────────────────
+
+@app.post("/v1/repo-map")
+def repo_map_endpoint(req: DepsRequest):
+    """Generate a comprehensive structural map of a repository."""
+    from agents.tracker import generate_repo_map
+
+    if not req.local_path and not req.github_repo:
+        raise HTTPException(status_code=422, detail="Provide local_path or github_repo")
+
+    if req.local_path:
+        path = Path(req.local_path).expanduser().resolve()
+        if not path.exists():
+            raise HTTPException(status_code=404, detail="Path not found")
+        reader = RepoReader(mode="local", path=str(path))
+    else:
+        reader = RepoReader(mode="github", repo=req.github_repo, ref=req.ref)
+
+    return generate_repo_map(reader)
+
+
 # ─── POLICY ──────────────────────────────────────────────────────────────────
 
 @app.get("/v1/policy/{tenant_id}")
@@ -337,13 +455,86 @@ def get_policy(tenant_id: str):
     try:
         from policy.loader import load_policy
         return load_policy(tenant_id)
-    except Exception:
+    except Exception as exc:
+        logger.warning("Policy load failed for %s, using defaults: %s", tenant_id, exc)
         return {
             "tenant_id": tenant_id,
             "gate_threshold": int(os.environ.get("SCIGATE_THRESHOLD", "75")),
             "regression_gate": False,
-            "notify_channels": os.environ.get("SCIGATE_NOTIFY_CHANNELS", "").split(","),
+            "notify_channels": [c for c in os.environ.get("SCIGATE_NOTIFY_CHANNELS", "").split(",") if c],
         }
+
+
+# ─── HELP ─────────────────────────────────────────────────────────────────────
+
+@app.get("/v1/help")
+def get_help():
+    return {
+        "app": "SciGate",
+        "version": "2.1.0",
+        "description": "Scientific Reproducibility Intelligence Platform",
+        "agents": [
+            {"name": "Audit",      "file": "agents/audit_agent.py",      "purpose": "Score 6 dimensions of reproducibility (0-100)"},
+            {"name": "Fix",        "file": "agents/fix_agent.py",        "purpose": "Generate AI-authored minimal patches for deductions"},
+            {"name": "Memory",     "file": "agents/memory_agent.py",     "purpose": "Persist scans, track patterns, maintain leaderboard"},
+            {"name": "Regression", "file": "agents/regression_agent.py", "purpose": "Detect score regressions across scan history"},
+            {"name": "Notify",     "file": "agents/notify_agent.py",     "purpose": "Fan-out alerts via VCS, ntfy, Mattermost, email"},
+        ],
+        "scoring": {
+            "dimensions": {
+                "environment":   {"max": 17, "checks": "Lockfile, pinned deps, Dockerfile, CUDA, Python version"},
+                "seeds":         {"max": 17, "checks": "Random seeds, PYTHONHASHSEED, cudnn.deterministic"},
+                "data":          {"max": 17, "checks": "Download scripts, checksums, DVC/LFS, no hardcoded paths"},
+                "docs":          {"max": 17, "checks": "Run instructions, hardware reqs, expected outputs, citation"},
+                "testing":       {"max": 17, "checks": "Test suite, coverage, smoke tests, shape assertions"},
+                "compliance":    {"max": 15, "checks": "LICENSE file, dependency license conflicts, NOTICE files"},
+            },
+            "grades": {
+                "EXCELLENT": "90-100 — auto-approve",
+                "GOOD":      "75-89  — approve with suggestions",
+                "FAIR":      "50-74  — block merge, draft PR opened",
+                "POOR":      "25-49  — block merge, notify team lead",
+                "CRITICAL":  "0-24   — block merge, escalation",
+            },
+        },
+        "endpoints": [
+            {"method": "POST", "path": "/v1/scan",                   "desc": "Scan a repo (local_path or github_repo)"},
+            {"method": "GET",  "path": "/v1/leaderboard",            "desc": "Org leaderboard and recurring patterns"},
+            {"method": "GET",  "path": "/v1/repo/{repo_slug}/history",    "desc": "Scan history for a repo (slug: owner__repo)"},
+            {"method": "POST", "path": "/v1/dependencies",           "desc": "Dependency health analysis"},
+            {"method": "POST", "path": "/v1/credentials",            "desc": "Credential history scan (live + deleted secrets)"},
+            {"method": "POST", "path": "/v1/repo-map",               "desc": "Repo structure map (languages, dirs, key files, AI configs)"},
+            {"method": "GET",  "path": "/v1/activity/{owner}/{repo}", "desc": "PRs and commits from GitHub"},
+            {"method": "POST", "path": "/v1/journal-check",          "desc": "Journal compliance check"},
+            {"method": "GET",  "path": "/v1/certificate/{owner}/{repo}", "desc": "Reproducibility certificate (HTML)"},
+            {"method": "GET",  "path": "/v1/badge/{owner}/{repo}",      "desc": "Dynamic shields.io badge (redirects with latest score)"},
+            {"method": "GET",  "path": "/v1/ci/{provider}/{job}",    "desc": "CI job status (jenkins|woodpecker|gha)"},
+            {"method": "GET",  "path": "/v1/policy/{tenant_id}",     "desc": "Repo policy config"},
+            {"method": "POST", "path": "/v1/webhooks/github",        "desc": "GitHub webhook receiver"},
+            {"method": "POST", "path": "/v1/webhooks/gitea",         "desc": "Gitea webhook receiver"},
+            {"method": "GET",  "path": "/v1/help",                   "desc": "This help document"},
+        ],
+        "scan_input_formats": [
+            {"format": "GitHub shorthand", "example": "owner/repo"},
+            {"format": "GitHub URL",       "example": "https://github.com/owner/repo"},
+            {"format": "Branch/ref",       "example": "owner/repo/tree/branch-name"},
+            {"format": "Local path",       "example": "/path/to/local/repo"},
+        ],
+        "env_vars": [
+            {"name": "GITHUB_TOKEN",        "desc": "GitHub PAT for remote repo scanning (avoids rate limits)"},
+            {"name": "ANTHROPIC_API_KEY",   "desc": "Anthropic API key for AI-generated fixes"},
+            {"name": "VCS_PROVIDER",        "desc": "github or gitea (default: github)"},
+            {"name": "CI_PROVIDER",         "desc": "jenkins, woodpecker, or gha (default: jenkins)"},
+            {"name": "SCIGATE_THRESHOLD",   "desc": "Gate threshold score (default: 75)"},
+            {"name": "SCIGATE_MEMORY_DIR",  "desc": "Memory storage directory (default: ./memory)"},
+        ],
+        "keyboard_shortcuts": {
+            "?": "Open / close help",
+            "Esc": "Close any modal",
+            "H": "Open scan history",
+            "/": "Focus the scan input",
+        },
+    }
 
 
 # ─── WEBHOOKS ────────────────────────────────────────────────────────────────
@@ -365,9 +556,12 @@ async def webhook_github(request: Request, background_tasks: BackgroundTasks):
             if not vcs.verify_webhook(body, sig, secret):
                 raise HTTPException(status_code=401, detail="Invalid webhook signature")
         except ImportError:
-            pass
+            logger.warning("VCS adapter not available — skipping webhook signature verification")
 
-    payload = json.loads(body)
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise HTTPException(status_code=400, detail="Malformed JSON payload")
     repo = payload.get("repository", {}).get("full_name", "")
 
     if event == "pull_request":
@@ -394,7 +588,10 @@ async def webhook_github(request: Request, background_tasks: BackgroundTasks):
 @app.post("/v1/webhooks/gitea")
 async def webhook_gitea(request: Request, background_tasks: BackgroundTasks):
     body = await request.body()
-    payload = json.loads(body)
+    try:
+        payload = json.loads(body)
+    except (json.JSONDecodeError, UnicodeDecodeError):
+        raise HTTPException(status_code=400, detail="Malformed JSON payload")
     repo = payload.get("repository", {}).get("full_name", "")
 
     pr = payload.get("pull_request")
@@ -420,22 +617,38 @@ async def webhook_gitea(request: Request, background_tasks: BackgroundTasks):
 
 # ─── CERTIFICATE ─────────────────────────────────────────────────────────────
 
+def _find_scan_history(owner: str, repo: str) -> Path:
+    """Resolve the JSONL scan history file for owner/repo, using MEMORY_DIR."""
+    from agents.memory_agent import MEMORY_DIR
+    slug = f"{owner}__{repo}"
+    path = MEMORY_DIR / "scans" / f"{slug}.jsonl"
+    if not path.exists():
+        slug_alt = f"{owner}/{repo}".replace("/", "__")
+        path = MEMORY_DIR / "scans" / f"{slug_alt}.jsonl"
+    return path
+
+
+def _read_last_scan(owner: str, repo: str) -> dict:
+    """Read the most recent scan record for a repo, or raise 404."""
+    path = _find_scan_history(owner, repo)
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="No scan history found")
+    try:
+        lines = [l.strip() for l in path.read_text().splitlines() if l.strip()]
+    except OSError as exc:
+        raise HTTPException(status_code=500, detail=f"Failed to read scan history: {exc}")
+    if not lines:
+        raise HTTPException(status_code=404, detail="No scans recorded")
+    try:
+        return json.loads(lines[-1])
+    except json.JSONDecodeError:
+        raise HTTPException(status_code=500, detail="Corrupt scan history — last line is not valid JSON")
+
+
 @app.get("/v1/certificate/{owner}/{repo}")
 def get_certificate(owner: str, repo: str):
     """Generate an HTML reproducibility certificate for the last scan."""
-    slug = f"{owner}__{repo}".replace("/", "__")
-    history_path = Path("memory/scans") / f"{slug}.jsonl"
-    if not history_path.exists():
-        slug_alt = f"{owner}/{repo}".replace("/", "__")
-        history_path = Path("memory/scans") / f"{slug_alt}.jsonl"
-    if not history_path.exists():
-        raise HTTPException(status_code=404, detail="No scan history found")
-
-    lines = [l.strip() for l in history_path.read_text().splitlines() if l.strip()]
-    if not lines:
-        raise HTTPException(status_code=404, detail="No scans recorded")
-
-    last = json.loads(lines[-1])
+    last = _read_last_scan(owner, repo)
     total = last.get("total", 0)
     grade = last.get("grade", "?")
     domain = last.get("domain", "?")
@@ -480,11 +693,39 @@ td:last-child {{ text-align: right; font-family: monospace; }}
 <table>{dims_html}</table>
 <div class="footer">
 Verified by SciGate v2.1.0<br>
-<a href="https://github.com/parthassamal/SciGate">github.com/parthassamal/SciGate</a>
+<a href="https://github.com/parthassamal/SciGate">scigate.dev</a>
 </div></body></html>"""
 
     from fastapi.responses import HTMLResponse
     return HTMLResponse(content=html)
+
+
+# ─── DYNAMIC BADGE ───────────────────────────────────────────────────────────
+
+@app.get("/v1/badge/{owner}/{repo}")
+def get_badge(owner: str, repo: str, style: str = "for-the-badge"):
+    """Redirect to a shields.io badge reflecting the latest scan score."""
+    total, grade = 0, "UNKNOWN"
+    try:
+        last = _read_last_scan(owner, repo)
+        total = last.get("total", 0)
+        grade = last.get("grade", "UNKNOWN")
+    except HTTPException:
+        pass
+
+    grade_colors = {
+        "EXCELLENT": "brightgreen", "GOOD": "green",
+        "FAIR": "yellow", "POOR": "orange", "CRITICAL": "red",
+    }
+    color = grade_colors.get(grade, "lightgrey")
+    label = f"{total}%20%2F%20100%20{grade}"
+
+    from fastapi.responses import RedirectResponse
+    badge_url = (
+        f"https://img.shields.io/badge/SciGate-{label}-{color}"
+        f"?style={style}&labelColor=08090d"
+    )
+    return RedirectResponse(url=badge_url, status_code=302)
 
 
 # ─── JOURNAL CHECKLIST ───────────────────────────────────────────────────────
@@ -532,7 +773,7 @@ def _run_fix_agent_bg(score_path: str, repo: str) -> None:
             score = json.load(f)
         fix_run(score, repo)
     except Exception as exc:
-        print(f"[Server] Fix agent background task failed: {exc}")
+        logger.error("Fix agent background task failed: %s", exc)
     finally:
         Path(score_path).unlink(missing_ok=True)
 
@@ -542,7 +783,7 @@ def _run_notify_bg(scan: dict, repo: str, pr_url: str | None) -> None:
         from agents.notify_agent import notify
         notify(scan, repo, pr_url)
     except Exception as exc:
-        print(f"[Server] Notify agent failed (non-fatal): {exc}")
+        logger.warning("Notify agent failed (non-fatal): %s", exc)
 
 
 def _run_webhook_scan(repo: str, ref: str, sha: str, trigger: str = "push") -> None:
@@ -564,7 +805,7 @@ def _run_webhook_scan(repo: str, ref: str, sha: str, trigger: str = "push") -> N
             status = "success" if not score["gate_blocked"] else "failure"
             vcs.post_check(repo, sha, status, f"SciGate: {total}/100 ({grade})")
         except Exception as exc:
-            print(f"[Server] VCS status post failed (non-fatal): {exc}")
+            logger.warning("VCS status post failed (non-fatal): %s", exc)
 
         # On PR events, run fix agent if score is below threshold
         if trigger == "pr" and score["gate_blocked"] and os.environ.get("ANTHROPIC_API_KEY"):
@@ -572,18 +813,18 @@ def _run_webhook_scan(repo: str, ref: str, sha: str, trigger: str = "push") -> N
                 from agents.fix_agent import run as fix_run
                 fix_run(score, repo)
             except Exception as exc:
-                print(f"[Server] Fix agent failed on PR (non-fatal): {exc}")
+                logger.warning("Fix agent failed on PR (non-fatal): %s", exc)
 
         from agents.notify_agent import notify
         notify(score, repo)
 
-        print(f"[Server] Webhook scan complete: {repo}@{ref} = {total}/100 ({grade})")
+        logger.info("Webhook scan complete: %s@%s = %s/100 (%s)", repo, ref, total, grade)
     except Exception as exc:
-        print(f"[Server] Webhook scan failed: {exc}")
+        logger.error("Webhook scan failed: %s", exc)
         # Post failure status so the PR isn't left hanging
         try:
             from integrations.vcs import get_vcs_adapter
             vcs = get_vcs_adapter()
             vcs.post_check(repo, sha, "error", f"SciGate scan failed: {exc}")
-        except Exception:
-            pass
+        except Exception as vcs_exc:
+            logger.warning("Could not post failure status to VCS: %s", vcs_exc)

@@ -20,10 +20,23 @@ import json
 import time
 import hashlib
 import argparse
+import logging
+import tempfile
 import textwrap
 from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
+
+try:
+    from filelock import FileLock
+except ImportError:
+    class FileLock:
+        """Fallback no-op lock when filelock is not installed."""
+        def __init__(self, path, timeout=-1): pass
+        def __enter__(self): return self
+        def __exit__(self, *a): pass
+
+logger = logging.getLogger("scigate.memory")
 
 MEMORY_DIR   = Path(os.getenv("SCIGATE_MEMORY_DIR", "memory"))
 ALERT_THRESH = int(os.getenv("SCIGATE_ALERT_THRESHOLD", "5"))
@@ -41,23 +54,38 @@ def load_json(path: Path, default: Any) -> Any:
     if not path.exists():
         return default
     try:
-        return json.loads(path.read_text())
+        with FileLock(str(path) + ".lock", timeout=5):
+            return json.loads(path.read_text())
     except (json.JSONDecodeError, OSError):
         return default
 
 def save_json(path: Path, data: Any) -> None:
+    """Atomic write: write to temp file then rename, with file lock."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    path.write_text(json.dumps(data, indent=2))
+    with FileLock(str(path) + ".lock", timeout=5):
+        tmp_fd, tmp_path = tempfile.mkstemp(dir=path.parent, suffix=".tmp")
+        try:
+            with os.fdopen(tmp_fd, "w") as f:
+                json.dump(data, f, indent=2)
+            os.replace(tmp_path, path)
+        except Exception:
+            os.unlink(tmp_path)
+            raise
 
 def append_jsonl(path: Path, record: dict) -> None:
+    """Append a single JSONL record with file locking."""
     path.parent.mkdir(parents=True, exist_ok=True)
-    with open(path, "a") as f:
-        f.write(json.dumps(record) + "\n")
+    with FileLock(str(path) + ".lock", timeout=5):
+        with open(path, "a") as f:
+            f.write(json.dumps(record) + "\n")
 
 
 # ─── SCAN HISTORY ────────────────────────────────────────────────────────────
 
 def persist_scan(score: dict, repo_name: str) -> None:
+    if not repo_name or not repo_name.strip():
+        logger.info("Skipping persist — empty repo name")
+        return
     scores = score["scores"]
     record = {
         "ts":         now_iso(),
@@ -76,7 +104,7 @@ def persist_scan(score: dict, repo_name: str) -> None:
     }
     path = MEMORY_DIR / "scans" / f"{repo_slug(repo_name)}.jsonl"
     append_jsonl(path, record)
-    print(f"[Memory] Scan persisted -> {path}")
+    logger.info("Scan persisted -> %s", path)
 
 
 # ─── PATTERN INDEX ───────────────────────────────────────────────────────────
@@ -114,10 +142,10 @@ def update_patterns(score: dict, repo_name: str) -> list[dict]:
         p["alert"] = p["count"] >= ALERT_THRESH
         if p["alert"] and not was_alerted:
             newly_alerted.append(p)
-            print(f"[Memory] ALERT: pattern '{p['description']}' hit {p['count']} repos")
+            logger.warning("ALERT: pattern '%s' hit %d repos", p["description"], p["count"])
 
     save_json(patterns_path, patterns)
-    print(f"[Memory] Pattern index updated ({len(patterns)} patterns)")
+    logger.info("Pattern index updated (%d patterns)", len(patterns))
     return newly_alerted
 
 
@@ -158,7 +186,7 @@ def update_leaderboard(score: dict, repo_name: str) -> None:
 
     leaderboard.sort(key=lambda e: e["latest_score"], reverse=True)
     save_json(lb_path, leaderboard)
-    print(f"[Memory] Leaderboard updated — {repo_name}: {score['scores']['total']}/100")
+    logger.info("Leaderboard updated — %s: %d/100", repo_name, score["scores"]["total"])
 
 
 # ─── GITHUB ISSUE ALERT ──────────────────────────────────────────────────────
@@ -169,7 +197,7 @@ def raise_github_alert(pattern: dict) -> None:
     gh_base  = os.environ.get("GITHUB_API_URL", "https://api.github.com").rstrip("/")
 
     if not gh_repo or not gh_token:
-        print("[Memory] Skipping alert issue (SCIGATE_ORG_REPO or GITHUB_TOKEN not set)")
+        logger.debug("Skipping alert issue (SCIGATE_ORG_REPO or GITHUB_TOKEN not set)")
         return
 
     try:
@@ -204,11 +232,11 @@ def raise_github_alert(pattern: dict) -> None:
             timeout=15,
         )
         if r.status_code in (200, 201):
-            print(f"[Memory] Alert issue created: {r.json().get('html_url')}")
+            logger.info("Alert issue created: %s", r.json().get("html_url"))
         else:
-            print(f"[Memory] Alert issue failed: {r.status_code} {r.text[:200]}")
+            logger.error("Alert issue failed: %d %s", r.status_code, r.text[:200])
     except Exception as exc:
-        print(f"[Memory] Alert issue error: {exc}")
+        logger.error("Alert issue error: %s", exc)
 
 
 # ─── NIGHTLY CONSOLIDATION ───────────────────────────────────────────────────
@@ -220,7 +248,12 @@ def consolidate() -> dict:
 
     all_records: list[dict] = []
     for jl_file in scans_dir.glob("*.jsonl"):
-        for line in jl_file.read_text().splitlines():
+        try:
+            text = jl_file.read_text()
+        except OSError as exc:
+            logger.warning("Skipping unreadable file %s: %s", jl_file, exc)
+            continue
+        for line in text.splitlines():
             if line.strip():
                 try:
                     all_records.append(json.loads(line))
@@ -257,7 +290,7 @@ def consolidate() -> dict:
 
     save_json(MEMORY_DIR / "patterns.json", patterns)
 
-    print(f"[Memory] Consolidation complete: {len(leaderboard)} repos, {len(patterns)} patterns")
+    logger.info("Consolidation complete: %d repos, %d patterns", len(leaderboard), len(patterns))
     return {
         "status":   "consolidated",
         "repos":    len(leaderboard),

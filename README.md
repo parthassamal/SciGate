@@ -10,6 +10,46 @@ from GitHub Actions, webhooks, CLI, or the interactive dashboard.
 
 Self-hostable. 100% open-source infrastructure. No vendor lock-in.
 
+![SciGate Score](https://img.shields.io/badge/SciGate-75%20%2F%20100%20GOOD-green?style=for-the-badge&labelColor=08090d)
+![Python](https://img.shields.io/badge/Python-3.10%2B-3776AB?style=for-the-badge&logo=python&logoColor=white)
+![FastAPI](https://img.shields.io/badge/FastAPI-0.115-009688?style=for-the-badge&logo=fastapi&logoColor=white)
+![License](https://img.shields.io/badge/License-MIT-blue?style=for-the-badge)
+
+> **Dynamic badge for your repo:** Once SciGate has scanned a repo, embed the live badge:
+> ```markdown
+> ![SciGate](https://your-scigate-host/v1/badge/owner/repo)
+> ```
+> The badge auto-updates with every scan. The endpoint redirects to shields.io
+> with the latest score, grade, and color.
+
+### Example Scan Output
+
+```
+$ scigate audit /path/to/ml-repo --pretty
+
+  SciGate — Reproducibility Audit
+  ─────────────────────────────────
+  Domain:      ml-training (confidence: 0.92)
+  Score:       65 / 100 FAIR
+  Projected:   100 / 100 EXCELLENT (~59 min effort)
+
+  Environment ........... 10/17  (-7 unpinned deps)
+  Seeds & Determinism ... 13/17  (-4 unseeded torch.manual_seed)
+  Data Provenance ....... 12/17  (-5 hardcoded path)
+  Documentation ......... 11/17  (-6 no run instructions)
+  Testing ............... 9/17   (-8 no test suite)
+  Compliance ............ 10/15  (-5 no LICENSE)
+
+  Fixes (6):
+    1. Add requirements.txt with pinned versions    +7 pts  ~10 min
+    2. Add LICENSE file                             +5 pts  ~2 min
+    3. Create test_smoke.py                         +5 pts  ~15 min
+
+  Secrets: CLEAN — no credentials found (47 commits scanned)
+  AI Configs: 0 detected (clean of repo poisoning)
+  Gate: BLOCKED (65 < 75 threshold)
+```
+
 ---
 
 ## Architecture
@@ -72,10 +112,14 @@ graph LR
         ACT["GET /v1/activity/..."]
         CIR["GET /v1/ci/{provider}/{job}"]
         DEP["POST /v1/dependencies"]
+        CRED["POST /v1/credentials"]
+        RMAP["POST /v1/repo-map"]
+        JRNL["POST /v1/compliance-check"]
         POL["GET /v1/policy/{tenant}"]
         WHG["POST /v1/webhooks/github"]
         WHT["POST /v1/webhooks/gitea"]
         HP["GET /health"]
+        HLP["GET /v1/help"]
     end
 
     SCAN --> AUD["audit_agent"]
@@ -83,6 +127,8 @@ graph LR
     SCAN --> MMA["memory_agent"]
     SCAN --> REG["regression_agent"]
     SCAN --> NOT["notify_agent"]
+    SCAN --> CSCAN["credential_scan"]
+    SCAN --> MGEN["repo_map"]
     ACT --> TRK["tracker"]
     CIR --> CIA["CI adapters"]
     WHG --> AUD
@@ -101,14 +147,19 @@ graph TD
         MEM["Memory Panel<br/>patterns · leaderboard"]
         ACT["Activity Panel<br/>PRs · commits · diffs"]
         DEP["Dependency Health<br/>pinning · CVEs · deprecated"]
+        SEC["Secrets Panel<br/>credential history digger"]
         CIS["CI Status<br/>Jenkins · Woodpecker · GHA"]
+        MAP["Repo Map Modal<br/>languages · tree · AI configs"]
         BDG["Badge Embed<br/>shields.io copy-to-clipboard"]
+        HLP["Help Modal<br/>rubric · shortcuts · API ref"]
     end
 
     INP -->|POST /v1/scan| GAU
     GAU --> DIM
     GAU --> FIX
     GAU --> MEM
+    GAU --> SEC
+    GAU --> MAP
     INP -->|GET /v1/activity| ACT
     INP -->|POST /v1/dependencies| DEP
     INP -->|GET /v1/ci| CIS
@@ -268,10 +319,20 @@ the prefix are maintained for backward compatibility.
 | GET | `/v1/ci/{provider}/{job}` | Job status (`jenkins`, `woodpecker`, `gha`) |
 | GET | `/v1/ci/{provider}/{job}/builds` | Build history |
 
-### Dependencies
+### Dependencies & Security
 | Method | Path | Description |
 |---|---|---|
 | POST | `/v1/dependencies` | Dependency health analysis (pinning, CVEs, deprecated) |
+| POST | `/v1/credentials` | Credential history scan — live secrets + deleted/reverted from git history |
+| POST | `/v1/repo-map` | Repo structure map — languages, directories, key files, AI config detection |
+
+### Compliance, Certificates & Badges
+| Method | Path | Description |
+|---|---|---|
+| POST | `/v1/journal-check` | Compliance audit (Enterprise Production, ML Reproducibility, Open Source Release) |
+| GET | `/v1/certificate/{owner}/{repo}` | HTML reproducibility certificate |
+| GET | `/v1/badge/{owner}/{repo}` | Dynamic shields.io badge (redirects with latest score + grade) |
+| GET | `/v1/help` | Structured JSON help document (agents, scoring, endpoints) |
 
 ### Policy & Webhooks
 | Method | Path | Description |
@@ -313,6 +374,8 @@ protected_branches: [main, release/*]
 | `GITHUB_WEBHOOK_SECRET` | For webhooks | — | HMAC secret for webhook verification |
 | `NTFY_URL` / `NTFY_TOPIC` | For ntfy | — | ntfy push notifications |
 | `MATTERMOST_WEBHOOK_URL` | For Mattermost | — | Mattermost incoming webhook |
+| `SCIGATE_ALLOWED_ROOTS` | For security | — | Comma-separated paths to jail local scans |
+| `SCIGATE_CORS_ORIGINS` | For security | `*` | Comma-separated CORS origins |
 
 See `.env.example` for the full list.
 
@@ -360,7 +423,7 @@ graph LR
         MA["memory_agent.py<br/><i>pattern tracking + leaderboard</i>"]
         RA["regression_agent.py<br/><i>score regression detection</i>"]
         NA["notify_agent.py<br/><i>notification fan-out + badge</i>"]
-        TK["tracker.py<br/><i>PR / commit / CI / deps</i>"]
+        TK["tracker.py<br/><i>PR / commit / CI / deps / creds / map</i>"]
     end
 
     subgraph API["api/"]
@@ -420,11 +483,15 @@ graph LR
 |---|---|
 | **Explainable Scoring** | Every deduction includes a plain-English explanation of reproducibility impact |
 | **Effort Estimator** | Each fix shows estimated implementation time and projected score after applying |
-| **Journal Checklist Mode** | Check compliance against Nature Methods, NeurIPS, PLOS ONE requirements |
+| **Compliance Audit Mode** | Check repo against Enterprise Production, ML Reproducibility, or Open Source Release profiles |
 | **Jupyter Notebook Awareness** | Parse `.ipynb` files for unseeded randomness, hardcoded paths, committed outputs |
 | **Provenance Tool Detection** | Auto-detect data versioning, experiment tracking, and pipeline tools for scoring bonuses |
+| **Credential History Digger** | Scan git commit history for deleted/reverted secrets — AWS keys, GitHub tokens, private keys, DB connection strings, JWTs, and 18 total patterns |
+| **Repo Map Generator** | Auto-generate full structural map of any repo — language breakdown, directory tree, key file detection |
+| **AI Config / Repo Poisoning Detection** | Flag `.cursorrules`, `CLAUDE.md`, `mcp.json` and 15+ AI editor config files as attack vectors (inspired by [Medusa](https://github.com/Pantheon-Security/medusa)) |
+| **Interactive Help System** | Built-in help modal with scoring rubric, compliance profiles, API reference, keyboard shortcuts (`?` to open) |
 | **Score Certificate** | HTML reproducibility certificate at `/v1/certificate/{owner}/{repo}` |
-| **GitHub Actions Marketplace** | Reusable `action.yml` for any repo — threshold, journal, auto-fix |
+| **GitHub Actions Marketplace** | Reusable `action.yml` for any repo — threshold, compliance profile, auto-fix |
 | **Pre-commit Hook** | `scigate install-hook` blocks commits below score threshold |
 | **Inline PR Annotations** | `--format reviewdog` output for line-level annotations on pull requests |
 | **SPDX License Detection** | Detect SPDX identifiers and flag copyleft conflicts in permissive repos |

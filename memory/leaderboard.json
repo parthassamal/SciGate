@@ -14,17 +14,8 @@
     "latest_score": 75,
     "best_score": 75,
     "trend": "stable",
-    "last_scanned": "2026-04-01T17:22:06.977350+00:00",
-    "scan_count": 8
-  },
-  {
-    "repo": "",
-    "domain": "ml-training",
-    "latest_score": 75,
-    "best_score": 75,
-    "trend": "stable",
-    "last_scanned": "2026-04-02T00:10:43.869085+00:00",
-    "scan_count": 3
+    "last_scanned": "2026-04-02T14:45:20.260239+00:00",
+    "scan_count": 14
   },
   {
     "repo": "parthassamal/SciGate",
@@ -36,21 +27,21 @@
     "scan_count": 1
   },
   {
+    "repo": "parthassamal/qoe-guard-patent-demo",
+    "domain": "general-science",
+    "latest_score": 72,
+    "best_score": 72,
+    "trend": "stable",
+    "last_scanned": "2026-04-02T15:24:50.861559+00:00",
+    "scan_count": 2
+  },
+  {
     "repo": "parthassamal/paramount-media-ops-mcp",
     "domain": "ml-training",
     "latest_score": 65,
     "best_score": 65,
     "trend": "stable",
-    "last_scanned": "2026-04-01T23:54:15.561760+00:00",
-    "scan_count": 2
-  },
-  {
-    "repo": "octocat/Hello-World",
-    "domain": "general-science",
-    "latest_score": 50,
-    "best_score": 50,
-    "trend": "stable",
-    "last_scanned": "2026-04-01T16:49:47.940462+00:00",
-    "scan_count": 1
+    "last_scanned": "2026-04-02T03:39:02.965930+00:00",
+    "scan_count": 8
   }
 ]

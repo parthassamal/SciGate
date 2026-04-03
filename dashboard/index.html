@@ -3,35 +3,40 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>SciGate — Reproducibility Credit Score</title>
+<title>SciGate — Reproducibility Intelligence</title>
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
-<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:ital,wght@0,300;0,400;0,500;1,300&display=swap" rel="stylesheet">
+<link href="https://fonts.googleapis.com/css2?family=Syne:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&family=DM+Sans:ital,opsz,wght@0,9..40,300;0,9..40,400;0,9..40,500;0,9..40,600;1,9..40,300&display=swap" rel="stylesheet">
 <style>
 *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
 :root {
-  --bg:       #0a0d12;
-  --bg2:      #0f1318;
-  --bg3:      #141920;
-  --bg4:      #1a2028;
-  --border:   rgba(255,255,255,0.07);
-  --border2:  rgba(255,255,255,0.12);
+  --bg:       #08090d;
+  --bg2:      #0d0f14;
+  --bg3:      #12151c;
+  --bg4:      #1a1e28;
+  --border:   rgba(255,255,255,0.06);
+  --border2:  rgba(255,255,255,0.10);
   --amber:    #F5A623;
   --amber2:   #FFC55C;
-  --amber-d:  #8B5C0D;
-  --teal:     #00C9A7;
-  --teal2:    #00E6C0;
+  --amber-glow: rgba(245,166,35,0.15);
+  --teal:     #00D4B1;
+  --teal2:    #00F0CC;
+  --teal-glow: rgba(0,212,177,0.12);
   --red:      #FF5E5E;
   --red2:     #FF8080;
+  --purple:   #A78BFA;
   --text:     #E8EAF0;
   --text2:    #8B92A8;
-  --text3:    #4A5168;
+  --text3:    #3E4560;
   --mono:     'JetBrains Mono', monospace;
   --sans:     'DM Sans', sans-serif;
   --display:  'Syne', sans-serif;
+  --radius:   10px;
+  --glass:    rgba(255,255,255,0.02);
 }
 
+html { scroll-behavior: smooth; }
 body {
   background: var(--bg);
   color: var(--text);
@@ -44,20 +49,26 @@ body {
 
 body::before {
   content: '';
-  position: fixed;
-  inset: 0;
+  position: fixed; inset: 0;
+  background:
+    radial-gradient(ellipse 80% 50% at 50% -20%, rgba(245,166,35,0.06), transparent),
+    radial-gradient(ellipse 60% 40% at 80% 100%, rgba(0,212,177,0.04), transparent);
+  pointer-events: none; z-index: 0;
+}
+body::after {
+  content: '';
+  position: fixed; inset: 0;
   background-image:
-    linear-gradient(rgba(255,255,255,0.015) 1px, transparent 1px),
-    linear-gradient(90deg, rgba(255,255,255,0.015) 1px, transparent 1px);
-  background-size: 40px 40px;
-  pointer-events: none;
-  z-index: 0;
+    linear-gradient(rgba(255,255,255,0.012) 1px, transparent 1px),
+    linear-gradient(90deg, rgba(255,255,255,0.012) 1px, transparent 1px);
+  background-size: 48px 48px;
+  pointer-events: none; z-index: 0;
 }
 
 .container {
-  max-width: 1120px;
+  max-width: 1140px;
   margin: 0 auto;
-  padding: 0 24px;
+  padding: 0 28px;
   position: relative;
   z-index: 1;
 }
@@ -65,830 +76,196 @@ body::before {
 /* ─── HEADER ─── */
 header {
   border-bottom: 1px solid var(--border);
-  padding: 0;
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  background: rgba(8,9,13,0.8);
+  position: sticky; top: 0; z-index: 50;
 }
 .header-inner {
   display: flex;
   align-items: center;
   justify-content: space-between;
-  height: 60px;
+  height: 56px;
 }
 .logo {
-  display: flex;
-  align-items: center;
-  gap: 10px;
+  display: flex; align-items: center; gap: 10px;
   font-family: var(--display);
-  font-weight: 700;
-  font-size: 18px;
+  font-weight: 700; font-size: 17px;
   letter-spacing: -0.02em;
   color: var(--text);
 }
 .logo-mark {
-  width: 30px;
-  height: 30px;
+  width: 28px; height: 28px;
   border: 1.5px solid var(--amber);
   border-radius: 6px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
+  display: flex; align-items: center; justify-content: center;
   position: relative;
+  background: var(--amber-glow);
 }
 .logo-mark::after {
   content: '';
-  width: 10px;
-  height: 10px;
+  width: 9px; height: 9px;
   background: var(--amber);
   border-radius: 2px;
 }
 .logo span { color: var(--amber); }
 
 .header-meta {
-  display: flex;
-  align-items: center;
-  gap: 20px;
+  display: flex; align-items: center; gap: 16px;
 }
 .repo-pill {
-  display: flex;
-  align-items: center;
-  gap: 8px;
+  display: flex; align-items: center; gap: 8px;
   background: var(--bg3);
-  border: 1px solid var(--border2);
+  border: 1px solid var(--border);
   border-radius: 6px;
-  padding: 5px 12px;
+  padding: 4px 12px;
   font-family: var(--mono);
   font-size: 11px;
   color: var(--text2);
+  transition: all 0.3s;
 }
+.repo-pill.active { border-color: var(--amber); color: var(--amber); }
 .repo-pill .dot {
   width: 6px; height: 6px;
-  background: var(--teal);
   border-radius: 50%;
+  background: var(--text3);
+  transition: background 0.3s;
+}
+.repo-pill.active .dot {
+  background: var(--teal);
   animation: pulse 2s ease-in-out infinite;
 }
 @keyframes pulse {
   0%,100% { opacity: 1; }
   50% { opacity: 0.4; }
 }
-.header-actions {
-  display: flex;
-  gap: 8px;
-}
+.header-actions { display: flex; gap: 8px; }
 .btn {
-  font-family: var(--sans);
-  font-size: 12px;
-  font-weight: 500;
-  padding: 6px 14px;
-  border-radius: 6px;
+  font-family: var(--sans); font-size: 12px; font-weight: 500;
+  padding: 6px 14px; border-radius: 6px;
   border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.15s;
+  background: transparent; color: var(--text2);
+  cursor: pointer; transition: all 0.2s;
 }
-.btn:hover { background: var(--bg3); color: var(--text); }
+.btn:hover { background: var(--bg3); color: var(--text); border-color: var(--text3); }
 .btn-primary {
-  background: var(--amber);
-  color: #0a0d12;
-  border-color: var(--amber);
-  font-weight: 600;
+  background: var(--amber); color: #08090d;
+  border-color: var(--amber); font-weight: 600;
+  box-shadow: 0 0 20px rgba(245,166,35,0.15);
 }
-.btn-primary:hover { background: var(--amber2); border-color: var(--amber2); color: #0a0d12; }
-.btn-primary:disabled {
-  opacity: 0.6;
-  cursor: wait;
+.btn-primary:hover {
+  background: var(--amber2); border-color: var(--amber2);
+  box-shadow: 0 0 30px rgba(245,166,35,0.25);
 }
+.btn-primary:disabled { opacity: 0.5; cursor: wait; }
 
-/* ─── HERO BAND ─── */
+/* ─── HERO ─── */
 .hero-band {
-  padding: 40px 0 36px;
+  padding: 44px 0 40px;
   display: grid;
   grid-template-columns: 1fr auto;
-  gap: 40px;
+  gap: 48px;
   align-items: center;
   border-bottom: 1px solid var(--border);
 }
 .hero-left h1 {
   font-family: var(--display);
-  font-size: 13px;
-  font-weight: 600;
-  letter-spacing: .12em;
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .14em;
   text-transform: uppercase;
   color: var(--amber);
   margin-bottom: 10px;
 }
 .hero-left h2 {
   font-family: var(--display);
-  font-size: 32px;
-  font-weight: 800;
+  font-size: 30px; font-weight: 800;
   letter-spacing: -0.03em;
   color: var(--text);
-  line-height: 1.1;
-  margin-bottom: 12px;
+  line-height: 1.15;
+  margin-bottom: 10px;
 }
 .hero-left p {
-  font-size: 14px;
-  color: var(--text2);
-  max-width: 480px;
-  line-height: 1.7;
+  font-size: 13px; color: var(--text2);
+  max-width: 480px; line-height: 1.7;
 }
 .domain-tag {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  background: rgba(0,201,167,0.1);
-  border: 1px solid rgba(0,201,167,0.25);
+  display: inline-flex; align-items: center; gap: 6px;
+  background: var(--teal-glow);
+  border: 1px solid rgba(0,212,177,0.2);
   border-radius: 4px;
   padding: 3px 10px;
-  font-family: var(--mono);
-  font-size: 11px;
+  font-family: var(--mono); font-size: 10px;
   color: var(--teal);
-  margin-bottom: 14px;
+  margin-bottom: 12px;
+  letter-spacing: 0.03em;
+  opacity: 0;
+  transition: opacity 0.4s;
 }
+.domain-tag.visible { opacity: 1; }
 
 /* ─── SCORE GAUGE ─── */
 .score-gauge {
   position: relative;
-  width: 200px;
-  height: 200px;
+  width: 200px; height: 200px;
   flex-shrink: 0;
 }
 .gauge-svg { width: 200px; height: 200px; transform: rotate(-135deg); }
 .gauge-track {
-  fill: none;
-  stroke: var(--bg4);
-  stroke-width: 10;
-  stroke-linecap: round;
+  fill: none; stroke: var(--bg4);
+  stroke-width: 8; stroke-linecap: round;
 }
 .gauge-fill {
-  fill: none;
-  stroke: var(--amber);
-  stroke-width: 10;
-  stroke-linecap: round;
-  stroke-dasharray: 565;
-  stroke-dashoffset: 565;
-  transition: stroke-dashoffset 1.4s cubic-bezier(0.4, 0, 0.2, 1), stroke 0.4s ease;
-  filter: drop-shadow(0 0 6px rgba(245,166,35,0.5));
+  fill: none; stroke: var(--text3);
+  stroke-width: 8; stroke-linecap: round;
+  stroke-dasharray: 565; stroke-dashoffset: 565;
+  transition: stroke-dashoffset 1.6s cubic-bezier(0.25, 0.46, 0.45, 0.94), stroke 0.6s ease;
+  filter: drop-shadow(0 0 8px rgba(245,166,35,0.4));
 }
-
 .gauge-center {
-  position: absolute;
-  inset: 0;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  justify-content: center;
+  position: absolute; inset: 0;
+  display: flex; flex-direction: column;
+  align-items: center; justify-content: center;
 }
 .gauge-number {
   font-family: var(--mono);
-  font-size: 52px;
-  font-weight: 700;
-  color: var(--amber);
-  line-height: 1;
-  letter-spacing: -0.03em;
-  transition: color 0.4s ease;
+  font-size: 50px; font-weight: 700;
+  color: var(--text3);
+  line-height: 1; letter-spacing: -0.03em;
+  transition: color 0.6s ease;
 }
 .gauge-max {
   font-family: var(--mono);
-  font-size: 13px;
-  color: var(--text3);
+  font-size: 12px; color: var(--text3);
   margin-top: 2px;
 }
 .gauge-grade {
   font-family: var(--display);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
   margin-top: 4px;
-  transition: color 0.4s ease;
+  transition: color 0.6s ease;
+  color: var(--text3);
 }
 
-/* ─── COMMIT INFO ─── */
-.commit-bar {
-  display: flex;
-  align-items: center;
-  gap: 20px;
-  padding: 12px 16px;
-  background: var(--bg3);
-  border: 1px solid var(--border);
-  border-radius: 8px;
-  margin: 20px 0 0;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text2);
+/* ─── INPUT ─── */
+.repo-input-wrap {
+  display: flex; gap: 8px; margin-top: 16px;
 }
-.commit-sha { color: var(--amber); }
-.commit-bar .sep { color: var(--text3); }
-
-/* ─── DIMENSIONS GRID ─── */
-.section-label {
-  font-family: var(--display);
-  font-size: 11px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin: 32px 0 16px;
-}
-.dimensions-grid {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 12px;
-  margin-bottom: 28px;
-}
-.dim-card {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
-  position: relative;
-  overflow: hidden;
-  transition: border-color 0.2s, transform 0.2s;
-  cursor: default;
-}
-.dim-card:hover {
-  border-color: var(--border2);
-  transform: translateY(-2px);
-}
-.dim-card::before {
-  content: '';
-  position: absolute;
-  top: 0; left: 0; right: 0;
-  height: 2px;
-  border-radius: 10px 10px 0 0;
-}
-.dim-card.good::before { background: var(--teal); }
-.dim-card.warn::before { background: var(--amber); }
-.dim-card.bad::before  { background: var(--red); }
-.dim-label {
-  font-family: var(--display);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .12em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 10px;
-}
-.dim-score-row {
-  display: flex;
-  align-items: baseline;
-  gap: 4px;
-  margin-bottom: 12px;
-}
-.dim-score {
-  font-family: var(--mono);
-  font-size: 30px;
-  font-weight: 700;
-  line-height: 1;
-}
-.dim-card.good .dim-score { color: var(--teal); }
-.dim-card.warn .dim-score { color: var(--amber); }
-.dim-card.bad  .dim-score { color: var(--red); }
-.dim-max {
-  font-family: var(--mono);
-  font-size: 13px;
-  color: var(--text3);
-}
-.dim-bar-track {
-  height: 3px;
-  background: var(--bg4);
-  border-radius: 2px;
-  overflow: hidden;
-  margin-bottom: 10px;
-}
-.dim-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  width: 0%;
-  transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
-}
-.dim-card.good .dim-bar-fill { background: var(--teal); }
-.dim-card.warn .dim-bar-fill { background: var(--amber); }
-.dim-card.bad  .dim-bar-fill { background: var(--red); }
-.dim-note {
-  font-size: 11px;
-  color: var(--text3);
-  line-height: 1.5;
-}
-
-/* ─── TWO COLUMN LAYOUT ─── */
-.two-col {
-  display: grid;
-  grid-template-columns: 1fr 360px;
-  gap: 16px;
-  margin-bottom: 24px;
-}
-
-/* ─── THREE COLUMN LAYOUT (Trackers) ─── */
-.three-col {
-  display: grid;
-  grid-template-columns: repeat(3, 1fr);
-  gap: 16px;
-  margin-bottom: 24px;
-}
-.tracker-panel { min-height: 180px; }
-.tracker-list { max-height: 320px; overflow-y: auto; }
-.tracker-empty {
-  padding: 24px 16px;
-  text-align: center;
-  color: var(--text3);
-  font-size: 12px;
-}
-.tracker-item {
-  display: flex;
-  gap: 10px;
-  padding: 8px 14px;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-  align-items: flex-start;
-}
-.tracker-item:last-child { border-bottom: none; }
-.tracker-icon {
-  width: 22px; height: 22px;
-  display: flex; align-items: center; justify-content: center;
-  border-radius: 6px;
-  font-size: 11px;
-  flex-shrink: 0;
-  margin-top: 1px;
-}
-.tracker-icon.pr { background: rgba(139,92,246,0.12); color: #a78bfa; }
-.tracker-icon.commit { background: rgba(0,201,167,0.10); color: var(--teal); }
-.tracker-icon.dep-ok { background: rgba(0,201,167,0.10); color: var(--teal); }
-.tracker-icon.dep-warn { background: rgba(245,166,35,0.12); color: var(--amber); }
-.tracker-icon.dep-bad { background: rgba(255,94,94,0.10); color: var(--red); }
-.tracker-icon.jenkins-ok { background: rgba(0,201,167,0.10); color: var(--teal); }
-.tracker-icon.jenkins-fail { background: rgba(255,94,94,0.10); color: var(--red); }
-.tracker-icon.jenkins-run { background: rgba(245,166,35,0.12); color: var(--amber); }
-.tracker-body { flex: 1; min-width: 0; }
-.tracker-title {
-  font-weight: 500;
-  color: var(--text);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-.tracker-meta {
-  color: var(--text3);
-  font-size: 11px;
-  margin-top: 2px;
-}
-.dep-bar-track {
-  height: 4px;
-  background: var(--bg4);
-  border-radius: 2px;
-  margin-top: 8px;
-  overflow: hidden;
-}
-.dep-bar-fill {
-  height: 100%;
-  border-radius: 2px;
-  transition: width 0.6s ease;
-}
-
-/* ─── PANELS ─── */
-.panel {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-}
-.panel-header {
-  display: flex;
-  align-items: center;
-  justify-content: space-between;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-}
-.panel-title {
-  font-family: var(--display);
-  font-size: 12px;
-  font-weight: 700;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-  color: var(--text2);
-}
-.panel-badge {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  padding: 2px 8px;
-  border-radius: 3px;
-  background: rgba(245,166,35,0.15);
-  color: var(--amber);
-}
-
-/* ─── FIX ITEMS ─── */
-.fix-item {
-  display: grid;
-  grid-template-columns: auto 1fr auto;
-  gap: 14px;
-  align-items: start;
-  padding: 14px 18px;
-  border-bottom: 1px solid var(--border);
-  transition: background 0.15s, opacity 0.3s;
-  cursor: pointer;
-  position: relative;
-}
-.fix-item:last-child { border-bottom: none; }
-.fix-item:hover { background: var(--bg3); }
-.fix-item.applied {
-  opacity: 0.35;
-}
-.fix-item.applied::after {
-  content: 'APPLIED';
-  position: absolute;
-  right: 18px;
-  top: 50%;
-  transform: translateY(-50%);
-  font-family: var(--mono);
-  font-size: 9px;
-  font-weight: 700;
-  letter-spacing: .12em;
-  color: var(--teal);
-  background: rgba(0,201,167,0.1);
-  border: 1px solid rgba(0,201,167,0.2);
-  padding: 2px 8px;
-  border-radius: 3px;
-}
-.fix-index {
-  font-family: var(--mono);
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--text3);
-  padding-top: 2px;
-  min-width: 16px;
-}
-.fix-title {
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 3px;
-  line-height: 1.4;
-}
-.fix-file {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-}
-.fix-points {
-  font-family: var(--mono);
-  font-size: 12px;
-  font-weight: 700;
-  white-space: nowrap;
-  padding-top: 2px;
-}
-.fix-points.high { color: var(--teal); }
-.fix-points.med  { color: var(--amber); }
-.fix-explanation {
-  font-size: 11px;
-  color: var(--text3);
-  line-height: 1.5;
-  margin-top: 4px;
-  max-height: 0;
-  overflow: hidden;
-  transition: max-height 0.3s ease, opacity 0.3s ease;
-  opacity: 0;
-}
-.fix-item:hover .fix-explanation,
-.fix-item.expanded .fix-explanation {
-  max-height: 80px;
-  opacity: 1;
-}
-.fix-effort {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
-  white-space: nowrap;
-  margin-top: 2px;
-}
-
-/* ─── PROJECTED SCORE ─── */
-.projected-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 10px 16px;
-  background: rgba(0,201,167,0.06);
-  border: 1px solid rgba(0,201,167,0.15);
-  border-radius: 8px;
-  margin: 12px 0 0;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--teal);
-}
-.projected-bar .label { color: var(--text2); font-family: var(--sans); }
-.projected-bar .effort-tag {
-  margin-left: auto;
-  font-size: 10px;
-  padding: 2px 8px;
-  border-radius: 3px;
-  background: rgba(245,166,35,0.12);
-  color: var(--amber);
-}
-.projected-bar .proj-grade {
-  font-family: var(--display);
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .08em;
-  text-transform: uppercase;
-}
-
-/* ─── JOURNAL CHECKLIST ─── */
-.journal-bar {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  margin: 12px 0 0;
-}
-.journal-select {
+.repo-input {
+  flex: 1;
   background: var(--bg3);
   border: 1px solid var(--border2);
-  border-radius: 6px;
-  padding: 6px 10px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text);
-  outline: none;
-}
-.journal-select:focus { border-color: var(--amber); }
-.journal-btn {
-  font-family: var(--sans);
-  font-size: 11px;
-  font-weight: 500;
-  padding: 6px 12px;
-  border-radius: 6px;
-  border: 1px solid var(--border2);
-  background: transparent;
-  color: var(--text2);
-  cursor: pointer;
-  transition: all 0.15s;
-}
-.journal-btn:hover { background: var(--bg3); color: var(--text); }
-.journal-results {
-  margin-top: 8px;
-  font-size: 12px;
-}
-.journal-item {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 4px 0;
-}
-.journal-pass { color: var(--teal); }
-.journal-fail { color: var(--red); }
-
-/* ─── REGRESSION BANNER ─── */
-.regression-bar {
-  display: flex;
-  align-items: center;
-  gap: 12px;
+  border-radius: 8px;
   padding: 10px 16px;
-  background: rgba(255,94,94,0.06);
-  border: 1px solid rgba(255,94,94,0.2);
-  border-radius: 8px;
-  margin: 8px 0 0;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--red2);
+  font-family: var(--mono); font-size: 12px;
+  color: var(--text); outline: none;
+  transition: border-color 0.2s, box-shadow 0.2s;
 }
-.regression-bar .label { color: var(--text2); font-family: var(--sans); }
-
-/* ─── HISTORY MODAL ─── */
-.history-overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(0,0,0,0.6);
-  z-index: 100;
-  display: none;
-  align-items: center;
-  justify-content: center;
+.repo-input:focus {
+  border-color: var(--amber);
+  box-shadow: 0 0 0 3px rgba(245,166,35,0.08);
 }
-.history-overlay.open { display: flex; }
-.history-modal {
-  background: var(--bg2);
-  border: 1px solid var(--border2);
-  border-radius: 12px;
-  padding: 24px;
-  min-width: 400px;
-  max-width: 600px;
-  max-height: 80vh;
-  overflow-y: auto;
-}
-.history-modal h3 {
-  font-family: var(--display);
-  font-size: 14px;
-  font-weight: 700;
-  margin-bottom: 16px;
-  color: var(--text);
-}
-.history-row {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 8px 0;
-  border-bottom: 1px solid var(--border);
-  font-size: 12px;
-}
-.history-row:last-child { border-bottom: none; }
-.history-score {
-  font-family: var(--mono);
-  font-weight: 700;
-  min-width: 36px;
-}
-.history-ts {
-  color: var(--text3);
-  font-family: var(--mono);
-  font-size: 10px;
-  margin-left: auto;
-}
-.history-close {
-  float: right;
-  background: none;
-  border: none;
-  color: var(--text3);
-  font-size: 18px;
-  cursor: pointer;
-}
-
-/* ─── CERTIFICATE LINK ─── */
-.cert-link {
-  display: inline-flex;
-  align-items: center;
-  gap: 6px;
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--amber);
-  text-decoration: none;
-  padding: 4px 10px;
-  border: 1px solid rgba(245,166,35,0.25);
-  border-radius: 4px;
-  background: rgba(245,166,35,0.06);
-  transition: all 0.15s;
-  margin-left: 12px;
-}
-.cert-link:hover { background: rgba(245,166,35,0.15); color: var(--amber2); }
-
-/* ─── ORG MEMORY ─── */
-.memory-item {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  padding: 12px 18px;
-  border-bottom: 1px solid var(--border);
-}
-.memory-item:last-child { border-bottom: none; }
-.memory-freq {
-  font-family: var(--mono);
-  font-size: 18px;
-  font-weight: 700;
-  color: var(--text3);
-  min-width: 36px;
-  text-align: right;
-}
-.memory-body { flex: 1; }
-.memory-pattern {
-  font-size: 12px;
-  font-weight: 500;
-  color: var(--text);
-  margin-bottom: 2px;
-}
-.memory-repos {
-  font-size: 11px;
-  color: var(--text3);
-}
-.memory-trend {
-  font-family: var(--mono);
-  font-size: 11px;
-  padding: 2px 6px;
-  border-radius: 3px;
-}
-.memory-trend.up {
-  background: rgba(255,94,94,0.12);
-  color: var(--red2);
-}
-.memory-trend.down {
-  background: rgba(0,201,167,0.1);
-  color: var(--teal);
-}
-
-/* ─── BADGE PANEL ─── */
-.badge-panel {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  overflow: hidden;
-  margin-bottom: 24px;
-}
-.badge-display {
-  padding: 24px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  border-bottom: 1px solid var(--border);
-  background: var(--bg);
-}
-.badge-chip {
-  display: inline-flex;
-  align-items: center;
-  gap: 0;
-  border-radius: 4px;
-  overflow: hidden;
-  font-family: var(--mono);
-  font-size: 11px;
-  font-weight: 600;
-  border: 1px solid rgba(255,255,255,0.08);
-}
-.badge-left {
-  background: #1a2028;
-  color: #8B92A8;
-  padding: 4px 10px;
-}
-.badge-right {
-  padding: 4px 10px;
-  transition: background 0.3s, color 0.3s;
-}
-.badge-embed { padding: 14px 18px; }
-.badge-embed-label {
-  font-size: 10px;
-  font-weight: 600;
-  letter-spacing: .1em;
-  text-transform: uppercase;
-  color: var(--text3);
-  margin-bottom: 8px;
-}
-.badge-code {
-  background: var(--bg);
-  border: 1px solid var(--border);
-  border-radius: 6px;
-  padding: 10px 12px;
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text2);
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  cursor: pointer;
-  transition: border-color 0.15s, color 0.15s;
-}
-.badge-code:hover { border-color: var(--border2); }
-.badge-code.copied {
-  border-color: var(--teal);
-  color: var(--teal);
-}
-
-/* ─── GATE STATUS ─── */
-.gate-panel {
-  background: var(--bg2);
-  border: 1px solid var(--border);
-  border-radius: 10px;
-  padding: 18px;
-  display: flex;
-  align-items: center;
-  gap: 16px;
-  margin-bottom: 40px;
-  transition: border-color 0.4s ease;
-}
-.gate-panel.cleared { border-color: rgba(0,201,167,0.3); }
-.gate-icon {
-  width: 40px;
-  height: 40px;
-  border-radius: 8px;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  flex-shrink: 0;
-  font-size: 18px;
-  transition: all 0.4s ease;
-}
-.gate-icon.blocked {
-  background: rgba(255,94,94,0.12);
-  border: 1px solid rgba(255,94,94,0.2);
-}
-.gate-icon.clear {
-  background: rgba(0,201,167,0.1);
-  border: 1px solid rgba(0,201,167,0.2);
-}
-.gate-body { flex: 1; }
-.gate-title {
-  font-family: var(--display);
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 2px;
-  transition: color 0.4s ease;
-}
-.gate-title.blocked { color: var(--red2); }
-.gate-title.cleared { color: var(--teal); }
-.gate-sub {
-  font-size: 12px;
-  color: var(--text2);
-}
-.gate-threshold {
-  font-family: var(--mono);
-  font-size: 11px;
-  color: var(--text3);
-  text-align: right;
-}
+.repo-input::placeholder { color: var(--text3); }
 
 /* ─── SCAN PROGRESS ─── */
 .scan-progress {
@@ -903,68 +280,578 @@ header {
 .scan-progress.active { opacity: 1; }
 .scan-progress-bar {
   height: 100%;
-  background: linear-gradient(90deg, var(--amber), var(--amber2));
+  background: linear-gradient(90deg, var(--amber), var(--teal));
   border-radius: 1px;
   width: 0%;
-  transition: width 0.3s ease;
+  transition: width 0.4s ease;
 }
 
-/* ─── HISTORY SPARKLINE ─── */
+/* ─── SPARKLINE ─── */
 .sparkline-wrap {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-  margin-top: 10px;
+  display: flex; align-items: center; gap: 12px;
+  margin-top: 12px;
+  opacity: 0; transition: opacity 0.5s;
 }
+.sparkline-wrap.visible { opacity: 1; }
 .sparkline {
-  display: flex;
-  align-items: end;
-  gap: 2px;
-  height: 24px;
+  display: flex; align-items: end; gap: 2px; height: 24px;
 }
 .spark-bar {
-  width: 4px;
-  border-radius: 1px;
-  transition: height 0.4s cubic-bezier(0.4, 0, 0.2, 1);
+  width: 4px; border-radius: 1px;
+  transition: height 0.6s cubic-bezier(0.4, 0, 0.2, 1);
 }
 .sparkline-label {
-  font-family: var(--mono);
-  font-size: 10px;
-  color: var(--text3);
+  font-family: var(--mono); font-size: 10px; color: var(--text3);
 }
 
-/* ─── INPUT ─── */
-.repo-input-wrap {
-  display: flex;
-  gap: 8px;
-  margin-top: 12px;
+/* ─── COMMIT BAR ─── */
+.commit-bar {
+  display: flex; align-items: center; gap: 16px;
+  padding: 10px 16px;
+  background: var(--glass);
+  backdrop-filter: blur(8px);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  margin: 16px 0 0;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text3);
+  opacity: 0;
+  transition: opacity 0.5s, transform 0.5s;
+  transform: translateY(8px);
 }
-.repo-input {
-  flex: 1;
+.commit-bar.visible {
+  opacity: 1; transform: translateY(0);
+}
+.commit-sha { color: var(--amber); }
+.commit-bar .sep { color: var(--text3); opacity: 0.4; }
+
+/* ─── PROJECTED SCORE ─── */
+.projected-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: var(--teal-glow);
+  border: 1px solid rgba(0,212,177,0.12);
+  border-radius: 8px;
+  margin: 10px 0 0;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--teal);
+  transform: translateY(8px); opacity: 0;
+  transition: all 0.5s;
+}
+.projected-bar.visible { transform: translateY(0); opacity: 1; }
+.projected-bar .label { color: var(--text2); font-family: var(--sans); font-size: 12px; }
+.projected-bar .effort-tag {
+  margin-left: auto;
+  font-size: 10px; padding: 2px 8px;
+  border-radius: 3px;
+  background: rgba(245,166,35,0.10);
+  color: var(--amber);
+}
+.projected-bar .proj-grade {
+  font-family: var(--display);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .08em; text-transform: uppercase;
+}
+
+/* ─── REGRESSION BANNER ─── */
+.regression-bar {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  background: rgba(255,94,94,0.05);
+  border: 1px solid rgba(255,94,94,0.15);
+  border-radius: 8px;
+  margin: 8px 0 0;
+  font-family: var(--mono); font-size: 12px;
+  color: var(--red2);
+  animation: slideDown 0.3s ease;
+}
+.regression-bar .label { color: var(--text2); font-family: var(--sans); }
+
+/* ─── SECTION LABEL ─── */
+.section-label {
+  font-family: var(--display);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text3);
+  margin: 32px 0 16px;
+  display: flex; align-items: center; gap: 12px;
+}
+.section-label::after {
+  content: ''; flex: 1; height: 1px; background: var(--border);
+}
+
+/* ─── DIMENSIONS GRID ─── */
+.dimensions-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 10px;
+  margin-bottom: 28px;
+}
+.dim-card {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  position: relative; overflow: hidden;
+  transition: border-color 0.25s, transform 0.25s, box-shadow 0.25s;
+  cursor: default;
+}
+.dim-card:hover {
+  border-color: var(--border2);
+  transform: translateY(-3px);
+  box-shadow: 0 8px 24px rgba(0,0,0,0.3);
+}
+.dim-card::before {
+  content: '';
+  position: absolute; top: 0; left: 0; right: 0;
+  height: 2px; border-radius: var(--radius) var(--radius) 0 0;
+  background: var(--text3);
+  transition: background 0.4s;
+}
+.dim-card.good::before { background: var(--teal); }
+.dim-card.warn::before { background: var(--amber); }
+.dim-card.bad::before  { background: var(--red); }
+.dim-label {
+  font-family: var(--display);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--text3);
+  margin-bottom: 10px;
+}
+.dim-score-row {
+  display: flex; align-items: baseline; gap: 4px;
+  margin-bottom: 12px;
+}
+.dim-score {
+  font-family: var(--mono);
+  font-size: 28px; font-weight: 700; line-height: 1;
+  color: var(--text3);
+  transition: color 0.4s;
+}
+.dim-card.good .dim-score { color: var(--teal); }
+.dim-card.warn .dim-score { color: var(--amber); }
+.dim-card.bad  .dim-score { color: var(--red); }
+.dim-max { font-family: var(--mono); font-size: 12px; color: var(--text3); }
+.dim-bar-track {
+  height: 3px;
+  background: var(--bg4);
+  border-radius: 2px;
+  overflow: hidden;
+  margin-bottom: 10px;
+}
+.dim-bar-fill {
+  height: 100%; border-radius: 2px;
+  width: 0%;
+  transition: width 1.2s cubic-bezier(0.25, 0.46, 0.45, 0.94);
+}
+.dim-card.good .dim-bar-fill { background: linear-gradient(90deg, var(--teal), var(--teal2)); }
+.dim-card.warn .dim-bar-fill { background: linear-gradient(90deg, var(--amber), var(--amber2)); }
+.dim-card.bad  .dim-bar-fill { background: linear-gradient(90deg, var(--red), var(--red2)); }
+.dim-note {
+  font-size: 11px; color: var(--text3); line-height: 1.5;
+  transition: color 0.3s;
+}
+.dim-card:hover .dim-note { color: var(--text2); }
+
+/* ─── LAYOUT ─── */
+.two-col {
+  display: grid;
+  grid-template-columns: 1fr 340px;
+  gap: 12px;
+  margin-bottom: 24px;
+}
+.three-col {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 12px;
+  margin-bottom: 24px;
+}
+
+/* ─── PANELS ─── */
+.panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  transition: border-color 0.2s;
+}
+.panel:hover { border-color: var(--border2); }
+.panel-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.panel-title {
+  font-family: var(--display);
+  font-size: 11px; font-weight: 700;
+  letter-spacing: .08em; text-transform: uppercase;
+  color: var(--text2);
+}
+.panel-badge {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 3px;
+  background: rgba(245,166,35,0.10);
+  color: var(--amber);
+}
+.panel-empty {
+  padding: 32px 16px;
+  text-align: center;
+  color: var(--text3);
+  font-size: 12px;
+}
+.panel-empty-icon {
+  font-size: 24px; margin-bottom: 8px;
+  opacity: 0.3;
+}
+
+/* ─── FIX ITEMS ─── */
+.fix-item {
+  display: grid;
+  grid-template-columns: auto 1fr auto;
+  gap: 12px; align-items: start;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  transition: background 0.15s, opacity 0.3s;
+  cursor: pointer;
+  position: relative;
+}
+.fix-item:last-child { border-bottom: none; }
+.fix-item:hover { background: var(--bg3); }
+.fix-item.applied { opacity: 0.3; }
+.fix-item.applied::after {
+  content: 'APPLIED';
+  position: absolute; right: 16px; top: 50%;
+  transform: translateY(-50%);
+  font-family: var(--mono);
+  font-size: 9px; font-weight: 700;
+  letter-spacing: .12em;
+  color: var(--teal);
+  background: var(--teal-glow);
+  border: 1px solid rgba(0,212,177,0.2);
+  padding: 2px 8px; border-radius: 3px;
+}
+.fix-index {
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 700;
+  color: var(--text3);
+  padding-top: 2px; min-width: 16px;
+}
+.fix-title {
+  font-size: 13px; font-weight: 500;
+  color: var(--text);
+  margin-bottom: 3px; line-height: 1.4;
+}
+.fix-file {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--text3);
+}
+.fix-points {
+  font-family: var(--mono);
+  font-size: 12px; font-weight: 700;
+  white-space: nowrap; padding-top: 2px;
+}
+.fix-points.high { color: var(--teal); }
+.fix-points.med  { color: var(--amber); }
+.fix-explanation {
+  font-size: 11px; color: var(--text3);
+  line-height: 1.5; margin-top: 4px;
+  max-height: 0; overflow: hidden;
+  transition: max-height 0.3s ease, opacity 0.3s ease;
+  opacity: 0;
+}
+.fix-item:hover .fix-explanation { max-height: 80px; opacity: 1; }
+.fix-effort {
+  font-family: var(--mono);
+  font-size: 10px; color: var(--text3);
+  white-space: nowrap; margin-top: 2px;
+}
+
+/* ─── TRACKER PANELS ─── */
+.tracker-panel { min-height: 160px; }
+.tracker-list { max-height: 300px; overflow-y: auto; }
+.tracker-item {
+  display: flex; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; align-items: flex-start;
+}
+.tracker-item:last-child { border-bottom: none; }
+.tracker-icon {
+  width: 22px; height: 22px;
+  display: flex; align-items: center; justify-content: center;
+  border-radius: 6px;
+  font-size: 11px; flex-shrink: 0; margin-top: 1px;
+}
+.tracker-icon.pr { background: rgba(167,139,250,0.10); color: var(--purple); }
+.tracker-icon.commit { background: var(--teal-glow); color: var(--teal); }
+.tracker-icon.dep-ok { background: var(--teal-glow); color: var(--teal); }
+.tracker-icon.dep-warn { background: var(--amber-glow); color: var(--amber); }
+.tracker-icon.dep-bad { background: rgba(255,94,94,0.08); color: var(--red); }
+.tracker-icon.ci-ok { background: var(--teal-glow); color: var(--teal); }
+.tracker-icon.ci-fail { background: rgba(255,94,94,0.08); color: var(--red); }
+.tracker-icon.ci-run { background: var(--amber-glow); color: var(--amber); }
+.tracker-icon.cred-clean { background: var(--teal-glow); color: var(--teal); }
+.tracker-icon.cred-warn { background: var(--amber-glow); color: var(--amber); }
+.tracker-icon.cred-crit { background: rgba(255,94,94,0.08); color: var(--red); }
+.cred-severity-badge {
+  display: inline-flex; align-items: center; gap: 4px;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  padding: 2px 8px; border-radius: 4px;
+}
+.cred-severity-badge.clean { background: var(--teal-glow); color: var(--teal); }
+.cred-severity-badge.warning { background: var(--amber-glow); color: var(--amber); }
+.cred-severity-badge.critical { background: rgba(255,94,94,0.10); color: var(--red); }
+.tracker-body { flex: 1; min-width: 0; }
+.tracker-title {
+  font-weight: 500; color: var(--text);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+}
+.tracker-meta {
+  color: var(--text3); font-size: 11px; margin-top: 2px;
+}
+.dep-bar-track {
+  height: 4px; background: var(--bg4);
+  border-radius: 2px; margin-top: 8px; overflow: hidden;
+}
+.dep-bar-fill {
+  height: 100%; border-radius: 2px;
+  transition: width 0.8s ease;
+}
+
+/* ─── MEMORY ─── */
+.memory-item {
+  display: flex; align-items: center; gap: 12px;
+  padding: 10px 16px;
+  border-bottom: 1px solid var(--border);
+}
+.memory-item:last-child { border-bottom: none; }
+.memory-freq {
+  font-family: var(--mono);
+  font-size: 16px; font-weight: 700;
+  color: var(--text3); min-width: 32px;
+  text-align: right;
+}
+.memory-body { flex: 1; }
+.memory-pattern {
+  font-size: 12px; font-weight: 500; color: var(--text);
+  margin-bottom: 2px;
+}
+.memory-repos { font-size: 11px; color: var(--text3); }
+.memory-trend {
+  font-family: var(--mono); font-size: 10px;
+  padding: 2px 6px; border-radius: 3px;
+}
+.memory-trend.up { background: rgba(255,94,94,0.08); color: var(--red2); }
+.memory-trend.down { background: var(--teal-glow); color: var(--teal); }
+
+/* ─── JOURNAL ─── */
+.journal-bar {
+  display: flex; align-items: center;
+  flex-wrap: wrap; gap: 8px;
+  margin: 12px 0 0;
+}
+.journal-select {
   background: var(--bg3);
   border: 1px solid var(--border2);
   border-radius: 6px;
-  padding: 8px 14px;
-  font-family: var(--mono);
-  font-size: 12px;
-  color: var(--text);
-  outline: none;
+  padding: 6px 10px;
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text); outline: none;
   transition: border-color 0.15s;
 }
-.repo-input:focus { border-color: var(--amber); }
-.repo-input::placeholder { color: var(--text3); }
+.journal-select:focus { border-color: var(--amber); }
+.journal-btn {
+  font-family: var(--sans); font-size: 11px; font-weight: 500;
+  padding: 6px 12px; border-radius: 6px;
+  border: 1px solid var(--border2);
+  background: transparent; color: var(--text2);
+  cursor: pointer; transition: all 0.15s;
+}
+.journal-btn:hover { background: var(--bg3); color: var(--text); }
+.journal-info-hint {
+  color: var(--text3); font-size: 14px;
+  cursor: help; transition: color 0.15s;
+  user-select: none;
+}
+.journal-info-hint:hover { color: var(--amber); }
+.journal-label {
+  width: 100%;
+  font-size: 11px; color: var(--text3);
+  margin-bottom: 2px;
+}
+.journal-results { width: 100%; margin-top: 4px; font-size: 12px; }
+.journal-item {
+  display: flex; align-items: center; gap: 8px;
+  padding: 3px 0;
+}
+.journal-pass { color: var(--teal); }
+.journal-fail { color: var(--red); }
+
+/* ─── BADGE ─── */
+.badge-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  overflow: hidden;
+  margin-bottom: 24px;
+}
+.badge-display {
+  padding: 24px 20px;
+  display: flex; align-items: center; justify-content: center;
+  border-bottom: 1px solid var(--border);
+  background: linear-gradient(135deg, var(--bg) 0%, var(--bg2) 100%);
+}
+.badge-display img {
+  transition: transform 0.2s;
+}
+.badge-display img:hover { transform: scale(1.05); }
+.badge-embed { padding: 10px 16px; }
+.badge-embed-label {
+  font-size: 9px; font-weight: 600;
+  letter-spacing: .1em; text-transform: uppercase;
+  color: var(--text3); margin-bottom: 4px;
+}
+.badge-code {
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 7px 12px;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--text3);
+  white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  cursor: pointer; transition: all 0.15s;
+}
+.badge-code:hover { border-color: var(--border2); color: var(--text2); }
+.badge-code.copied { border-color: var(--teal); color: var(--teal); }
+
+/* ─── GATE ─── */
+.gate-panel {
+  background: var(--bg2);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+  padding: 18px;
+  display: flex; align-items: center; gap: 16px;
+  margin-bottom: 40px;
+  transition: border-color 0.5s, box-shadow 0.5s;
+}
+.gate-panel.cleared {
+  border-color: rgba(0,212,177,0.2);
+  box-shadow: 0 0 30px rgba(0,212,177,0.05);
+}
+.gate-icon {
+  width: 38px; height: 38px;
+  border-radius: 8px;
+  display: flex; align-items: center; justify-content: center;
+  flex-shrink: 0; font-size: 16px;
+  transition: all 0.5s;
+}
+.gate-icon.blocked {
+  background: rgba(255,94,94,0.08);
+  border: 1px solid rgba(255,94,94,0.15);
+  color: var(--red);
+}
+.gate-icon.clear {
+  background: var(--teal-glow);
+  border: 1px solid rgba(0,212,177,0.2);
+  color: var(--teal);
+}
+.gate-body { flex: 1; }
+.gate-title {
+  font-family: var(--display);
+  font-size: 13px; font-weight: 700;
+  color: var(--text3);
+  margin-bottom: 2px;
+  transition: color 0.5s;
+}
+.gate-title.blocked { color: var(--red2); }
+.gate-title.cleared { color: var(--teal); }
+.gate-sub { font-size: 12px; color: var(--text2); }
+.gate-threshold {
+  font-family: var(--mono); font-size: 11px;
+  color: var(--text3); text-align: right;
+}
+
+/* ─── CERTIFICATE ─── */
+.cert-link {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-family: var(--mono); font-size: 10px;
+  color: var(--amber); text-decoration: none;
+  padding: 3px 8px;
+  border: 1px solid rgba(245,166,35,0.2);
+  border-radius: 4px;
+  background: rgba(245,166,35,0.04);
+  transition: all 0.15s;
+  margin-left: 8px;
+}
+.cert-link:hover { background: rgba(245,166,35,0.12); }
+
+/* ─── HISTORY MODAL ─── */
+.history-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.7);
+  backdrop-filter: blur(4px);
+  z-index: 100; display: none;
+  align-items: center; justify-content: center;
+}
+.history-overlay.open { display: flex; }
+.history-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 24px;
+  min-width: 400px; max-width: 560px;
+  max-height: 80vh; overflow-y: auto;
+  animation: modalIn 0.25s ease;
+}
+@keyframes modalIn {
+  from { opacity: 0; transform: scale(0.96) translateY(8px); }
+  to   { opacity: 1; transform: scale(1) translateY(0); }
+}
+.history-modal h3 {
+  font-family: var(--display);
+  font-size: 14px; font-weight: 700;
+  margin-bottom: 16px; color: var(--text);
+}
+.history-row {
+  display: flex; align-items: center; gap: 12px;
+  padding: 8px 0;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px;
+}
+.history-row:last-child { border-bottom: none; }
+.history-score {
+  font-family: var(--mono); font-weight: 700;
+  min-width: 36px;
+}
+.history-ts {
+  color: var(--text3);
+  font-family: var(--mono); font-size: 10px;
+  margin-left: auto;
+}
+.history-close {
+  float: right;
+  background: none; border: none;
+  color: var(--text3); font-size: 18px;
+  cursor: pointer; transition: color 0.15s;
+}
+.history-close:hover { color: var(--text); }
 
 /* ─── ANIMATIONS ─── */
 @keyframes fadeInUp {
-  from { opacity: 0; transform: translateY(16px); }
+  from { opacity: 0; transform: translateY(20px); }
   to   { opacity: 1; transform: translateY(0); }
 }
-.hero-band      { animation: fadeInUp 0.5s ease both; }
-.dimensions-grid { animation: fadeInUp 0.5s ease 0.1s both; }
-.two-col        { animation: fadeInUp 0.5s ease 0.2s both; }
-.three-col      { animation: fadeInUp 0.5s ease 0.25s both; }
-.gate-panel     { animation: fadeInUp 0.5s ease 0.3s both; }
-.badge-panel    { animation: fadeInUp 0.5s ease 0.35s both; }
+@keyframes slideDown {
+  from { opacity: 0; transform: translateY(-8px); }
+  to   { opacity: 1; transform: translateY(0); }
+}
+.hero-band      { animation: fadeInUp 0.6s ease both; }
+.dimensions-grid { animation: fadeInUp 0.6s ease 0.08s both; }
+.two-col        { animation: fadeInUp 0.6s ease 0.16s both; }
+.three-col      { animation: fadeInUp 0.6s ease 0.22s both; }
+.gate-panel     { animation: fadeInUp 0.6s ease 0.28s both; }
+.badge-panel    { animation: fadeInUp 0.6s ease 0.32s both; }
 
 @keyframes scanPulse {
   0%   { box-shadow: 0 0 0 0 rgba(245,166,35,0.3); }
@@ -973,18 +860,322 @@ header {
 }
 .scanning { animation: scanPulse 1.2s ease infinite; }
 
+/* ─── REPO MAP MODAL ─── */
+.map-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 150; display: none;
+  align-items: center; justify-content: center;
+}
+.map-overlay.open { display: flex; }
+.map-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 0;
+  width: 740px; max-width: 94vw;
+  max-height: 85vh;
+  display: flex; flex-direction: column;
+  animation: modalIn 0.25s ease;
+  overflow: hidden;
+}
+.map-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 16px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.map-header h3 {
+  font-family: var(--display);
+  font-size: 15px; font-weight: 700;
+  color: var(--text);
+}
+.map-close {
+  background: none; border: none;
+  color: var(--text3); font-size: 20px;
+  cursor: pointer; transition: color 0.15s;
+  padding: 4px 8px; border-radius: 4px;
+}
+.map-close:hover { color: var(--text); background: var(--bg3); }
+.map-body {
+  overflow-y: auto; padding: 20px 24px 28px;
+  flex: 1;
+}
+.map-stats {
+  display: grid; grid-template-columns: repeat(4, 1fr);
+  gap: 10px; margin-bottom: 20px;
+}
+.map-stat {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px;
+  text-align: center;
+}
+.map-stat-value {
+  font-family: var(--mono);
+  font-size: 20px; font-weight: 700;
+  color: var(--amber);
+}
+.map-stat-label {
+  font-size: 10px; color: var(--text3);
+  text-transform: uppercase;
+  letter-spacing: .05em;
+  margin-top: 2px;
+}
+.map-section-title {
+  font-family: var(--display);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--amber);
+  margin: 20px 0 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.map-section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+.map-lang-bar {
+  display: flex; height: 12px;
+  border-radius: 6px; overflow: hidden;
+  margin-bottom: 8px;
+  background: var(--bg4);
+}
+.map-lang-segment {
+  transition: width 0.6s ease;
+  min-width: 2px;
+}
+.map-lang-legend {
+  display: flex; flex-wrap: wrap; gap: 10px;
+  font-size: 11px; color: var(--text2);
+}
+.map-lang-item {
+  display: flex; align-items: center; gap: 4px;
+}
+.map-lang-dot {
+  width: 8px; height: 8px; border-radius: 50%;
+  flex-shrink: 0;
+}
+.map-tree {
+  font-family: var(--mono);
+  font-size: 11px;
+  color: var(--text2);
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 14px 16px;
+  max-height: 220px;
+  overflow-y: auto;
+  line-height: 1.7;
+  white-space: pre;
+}
+.map-tree .dir { color: var(--amber); font-weight: 600; }
+.map-tree .count { color: var(--text3); }
+.map-key-file {
+  display: inline-flex; align-items: center; gap: 6px;
+  font-size: 11px;
+  padding: 4px 10px;
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 5px;
+  margin: 3px;
+  color: var(--text2);
+}
+.map-key-file .kf-name {
+  font-family: var(--mono);
+  color: var(--text); font-weight: 500;
+}
+.map-ai-item {
+  display: flex; gap: 10px;
+  padding: 8px 14px;
+  border-bottom: 1px solid var(--border);
+  font-size: 12px; align-items: flex-start;
+}
+.map-ai-item:last-child { border-bottom: none; }
+.map-ai-risk {
+  font-family: var(--mono); font-size: 9px; font-weight: 700;
+  padding: 2px 6px; border-radius: 3px;
+  white-space: nowrap;
+}
+.map-ai-risk.critical { background: rgba(255,94,94,0.10); color: var(--red); }
+.map-ai-risk.high { background: var(--amber-glow); color: var(--amber); }
+.map-ai-risk.medium { background: rgba(167,139,250,0.10); color: var(--purple); }
+
+/* ─── HELP MODAL ─── */
+.help-overlay {
+  position: fixed; inset: 0;
+  background: rgba(0,0,0,0.75);
+  backdrop-filter: blur(6px);
+  z-index: 200; display: none;
+  align-items: center; justify-content: center;
+}
+.help-overlay.open { display: flex; }
+.help-modal {
+  background: var(--bg2);
+  border: 1px solid var(--border2);
+  border-radius: 14px;
+  padding: 0;
+  width: 680px; max-width: 94vw;
+  max-height: 85vh;
+  display: flex; flex-direction: column;
+  animation: modalIn 0.25s ease;
+  overflow: hidden;
+}
+.help-header {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 18px 24px;
+  border-bottom: 1px solid var(--border);
+  flex-shrink: 0;
+}
+.help-header h3 {
+  font-family: var(--display);
+  font-size: 15px; font-weight: 700;
+  color: var(--text);
+  display: flex; align-items: center; gap: 10px;
+}
+.help-header h3 .help-logo {
+  width: 22px; height: 22px;
+  border: 1.5px solid var(--amber);
+  border-radius: 5px;
+  display: flex; align-items: center; justify-content: center;
+  background: var(--amber-glow);
+}
+.help-header h3 .help-logo::after {
+  content: ''; width: 7px; height: 7px;
+  background: var(--amber); border-radius: 2px;
+}
+.help-close {
+  background: none; border: none;
+  color: var(--text3); font-size: 20px;
+  cursor: pointer; transition: color 0.15s;
+  padding: 4px 8px; border-radius: 4px;
+}
+.help-close:hover { color: var(--text); background: var(--bg3); }
+.help-body {
+  overflow-y: auto; padding: 20px 24px 28px;
+  flex: 1;
+}
+.help-section {
+  margin-bottom: 24px;
+}
+.help-section:last-child { margin-bottom: 0; }
+.help-section-title {
+  font-family: var(--display);
+  font-size: 11px; font-weight: 600;
+  letter-spacing: .12em; text-transform: uppercase;
+  color: var(--amber);
+  margin-bottom: 10px;
+  display: flex; align-items: center; gap: 10px;
+}
+.help-section-title::after {
+  content: ''; flex: 1; height: 1px;
+  background: var(--border);
+}
+.help-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+}
+.help-card {
+  background: var(--bg3);
+  border: 1px solid var(--border);
+  border-radius: 8px;
+  padding: 12px 14px;
+  transition: border-color 0.2s;
+}
+.help-card:hover { border-color: var(--border2); }
+.help-card-title {
+  font-size: 12px; font-weight: 600;
+  color: var(--text);
+  margin-bottom: 3px;
+  display: flex; align-items: center; gap: 6px;
+}
+.help-card-title .hicon {
+  font-size: 13px; opacity: 0.7;
+}
+.help-card-desc {
+  font-size: 11px; color: var(--text2);
+  line-height: 1.5;
+}
+.help-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 12px;
+}
+.help-table th {
+  text-align: left;
+  font-family: var(--mono);
+  font-size: 10px; font-weight: 600;
+  letter-spacing: .06em;
+  text-transform: uppercase;
+  color: var(--text3);
+  padding: 6px 10px;
+  border-bottom: 1px solid var(--border);
+}
+.help-table td {
+  padding: 7px 10px;
+  border-bottom: 1px solid var(--border);
+  color: var(--text2);
+}
+.help-table tr:last-child td { border-bottom: none; }
+.help-table td:first-child {
+  font-weight: 500; color: var(--text);
+  white-space: nowrap;
+}
+.help-table .score-col {
+  font-family: var(--mono);
+  font-weight: 600;
+}
+.help-kbd {
+  display: inline-flex; align-items: center; justify-content: center;
+  font-family: var(--mono); font-size: 10px; font-weight: 600;
+  min-width: 22px; height: 20px;
+  padding: 0 5px;
+  background: var(--bg4);
+  border: 1px solid var(--border2);
+  border-radius: 4px;
+  color: var(--text);
+}
+.help-tip {
+  display: flex; align-items: flex-start; gap: 10px;
+  padding: 10px 14px;
+  background: var(--amber-glow);
+  border: 1px solid rgba(245,166,35,0.12);
+  border-radius: 8px;
+  font-size: 12px; color: var(--text2);
+  line-height: 1.5;
+}
+.help-tip-icon {
+  color: var(--amber); font-size: 14px;
+  flex-shrink: 0; margin-top: 1px;
+}
+.help-grade-dot {
+  display: inline-block;
+  width: 8px; height: 8px;
+  border-radius: 50%;
+  margin-right: 4px;
+}
+
 /* ─── SCROLLBAR ─── */
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bg2); }
+::-webkit-scrollbar { width: 5px; }
+::-webkit-scrollbar-track { background: transparent; }
 ::-webkit-scrollbar-thumb { background: var(--bg4); border-radius: 3px; }
+::-webkit-scrollbar-thumb:hover { background: var(--text3); }
 
 /* ─── RESPONSIVE ─── */
 @media (max-width: 900px) {
   .dimensions-grid { grid-template-columns: repeat(2, 1fr); }
   .two-col { grid-template-columns: 1fr; }
-  .three-col { grid-template-columns: 1fr; }
+  .three-col { grid-template-columns: repeat(2, 1fr); }
   .hero-band { grid-template-columns: 1fr; text-align: center; }
   .score-gauge { margin: 0 auto; }
+}
+@media (max-width: 600px) {
+  .dimensions-grid { grid-template-columns: 1fr; }
+  .three-col { grid-template-columns: 1fr; }
+  .header-meta { gap: 8px; }
+  .repo-pill { display: none; }
 }
 </style>
 </head>
@@ -1000,11 +1191,13 @@ header {
   <div class="header-meta">
     <div class="repo-pill" id="repoPill">
       <div class="dot"></div>
-      <span id="repoName">your-repo</span>
+      <span id="repoName">no repo</span>
     </div>
     <div class="header-actions">
+      <button class="btn" onclick="showHelp()" title="Help (?)">?</button>
       <button class="btn" onclick="showHistory()">History</button>
-      <button class="btn btn-primary" onclick="runScan()">Scan repo</button>
+      <button class="btn" onclick="showRepoMap()" id="mapBtn" title="Repo Map">Map</button>
+      <button class="btn btn-primary" onclick="runScan()">Scan</button>
     </div>
   </div>
 </div>
@@ -1016,24 +1209,22 @@ header {
   <!-- HERO -->
   <div class="hero-band">
     <div class="hero-left">
-      <div class="domain-tag" id="domainTag">—</div>
-      <h1>Reproducibility Credit Score</h1>
-      <h2 id="heroTitle">Enter a repo path below</h2>
-      <p id="heroDesc">Paste a local directory path and hit <strong>Scan repo</strong> to get a live reproducibility score.</p>
+      <div class="domain-tag" id="domainTag"></div>
+      <h1>Reproducibility Intelligence</h1>
+      <h2 id="heroTitle">Audit any repository</h2>
+      <p id="heroDesc">Paste a GitHub repo URL or local path and press <strong>Scan</strong> to generate a live reproducibility score across 6 dimensions.</p>
       <div class="repo-input-wrap">
-        <input class="repo-input" placeholder="GitHub repo, branch URL, or local path (e.g. owner/repo/tree/my-branch)" id="repoInput">
-        <button class="btn btn-primary" onclick="runScan()" id="scanBtn">Scan repo</button>
+        <input class="repo-input" placeholder="owner/repo, github.com/owner/repo/tree/branch, or /local/path" id="repoInput">
+        <button class="btn btn-primary" onclick="runScan()" id="scanBtn">Scan</button>
       </div>
       <div class="scan-progress" id="scanProgress">
         <div class="scan-progress-bar" id="scanProgressBar"></div>
       </div>
-      <!-- Score history sparkline -->
       <div class="sparkline-wrap" id="sparklineWrap">
         <div class="sparkline" id="sparkline"></div>
-        <div class="sparkline-label">last 8 scans</div>
+        <div class="sparkline-label" id="sparklineLabel"></div>
       </div>
     </div>
-
     <div class="score-gauge">
       <svg class="gauge-svg" viewBox="0 0 200 200">
         <circle class="gauge-track" cx="100" cy="100" r="80"
@@ -1041,41 +1232,40 @@ header {
         <circle class="gauge-fill" id="gaugeFill" cx="100" cy="100" r="80"/>
       </svg>
       <div class="gauge-center">
-        <div class="gauge-number" id="gaugeNum">0</div>
+        <div class="gauge-number" id="gaugeNum">—</div>
         <div class="gauge-max">/ 100</div>
-        <div class="gauge-grade" id="gaugeGrade">—</div>
+        <div class="gauge-grade" id="gaugeGrade"></div>
       </div>
     </div>
   </div>
 
   <!-- COMMIT BAR -->
   <div class="commit-bar" id="commitBar">
-    <span>domain</span>
-    <span class="commit-sha" id="commitDomain">—</span>
+    <span id="commitDomain"></span>
     <span class="sep">&middot;</span>
-    <span>commit <span class="commit-sha" id="commitSha">—</span></span>
+    <span>commit <span class="commit-sha" id="commitSha"></span></span>
     <span class="sep">&middot;</span>
-    <span>grade <span style="color:var(--text)" id="commitGrade">—</span></span>
+    <span>grade <span style="color:var(--text)" id="commitGrade"></span></span>
     <span class="sep">&middot;</span>
-    <span>gate <span style="color:var(--text)" id="commitGate">—</span></span>
+    <span>gate <span style="color:var(--text)" id="commitGate"></span></span>
     <span class="sep">&middot;</span>
-    <span id="commitMsg">waiting for scan</span>
+    <span id="commitMsg"></span>
     <a class="cert-link" id="certLink" href="#" target="_blank" style="display:none">Certificate</a>
     <span style="margin-left:auto" id="commitTime"></span>
   </div>
 
   <!-- PROJECTED SCORE -->
-  <div class="projected-bar" id="projectedBar" style="display:none">
+  <div class="projected-bar" id="projectedBar">
     <span class="label">Projected after fixes</span>
-    <span id="projectedScore">—</span> / 100
+    <span id="projectedScore"></span> / 100
     <span class="proj-grade" id="projectedGrade"></span>
-    <span class="effort-tag" id="projectedEffort">—</span>
+    <span class="effort-tag" id="projectedEffort"></span>
   </div>
 
   <!-- REGRESSION BANNER -->
   <div class="regression-bar" id="regressionBar" style="display:none">
     <span class="label">Regression detected</span>
-    <span id="regressionMsg">—</span>
+    <span id="regressionMsg"></span>
   </div>
 
   <!-- DIMENSIONS -->
@@ -1085,161 +1275,188 @@ header {
     <div class="dim-card" id="dim0">
       <div class="dim-label">Environment</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore0">0</div>
+        <div class="dim-score" id="dimScore0">—</div>
         <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar0"></div></div>
-      <div class="dim-note" id="dimNote0">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote0"></div>
     </div>
     <div class="dim-card" id="dim1">
       <div class="dim-label">Random seeds</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore1">0</div>
+        <div class="dim-score" id="dimScore1">—</div>
         <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar1"></div></div>
-      <div class="dim-note" id="dimNote1">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote1"></div>
     </div>
     <div class="dim-card" id="dim2">
       <div class="dim-label">Data provenance</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore2">0</div>
+        <div class="dim-score" id="dimScore2">—</div>
         <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar2"></div></div>
-      <div class="dim-note" id="dimNote2">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote2"></div>
     </div>
     <div class="dim-card" id="dim3">
       <div class="dim-label">Documentation</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore3">0</div>
+        <div class="dim-score" id="dimScore3">—</div>
         <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar3"></div></div>
-      <div class="dim-note" id="dimNote3">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote3"></div>
     </div>
     <div class="dim-card" id="dim4">
       <div class="dim-label">Testing</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore4">0</div>
+        <div class="dim-score" id="dimScore4">—</div>
         <div class="dim-max">/ 17</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar4"></div></div>
-      <div class="dim-note" id="dimNote4">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote4"></div>
     </div>
     <div class="dim-card" id="dim5">
       <div class="dim-label">Compliance</div>
       <div class="dim-score-row">
-        <div class="dim-score" id="dimScore5">0</div>
+        <div class="dim-score" id="dimScore5">—</div>
         <div class="dim-max">/ 15</div>
       </div>
       <div class="dim-bar-track"><div class="dim-bar-fill" id="bar5"></div></div>
-      <div class="dim-note" id="dimNote5">Scan a repo to see results</div>
+      <div class="dim-note" id="dimNote5"></div>
     </div>
   </div>
 
-  <!-- TWO COL -->
+  <!-- TWO COL: FIXES + MEMORY -->
   <div class="two-col">
-
-    <!-- FIXES -->
     <div class="panel" id="fixesPanel">
       <div class="panel-header">
         <div class="panel-title">Recommended fixes</div>
         <div class="panel-badge" id="fixBadge">ranked by ROI</div>
       </div>
-      <div id="fixList"></div>
+      <div id="fixList">
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#9881;</div>
+          Run a scan to surface prioritized fixes
+        </div>
+      </div>
     </div>
 
-    <!-- ORG MEMORY -->
     <div class="panel">
       <div class="panel-header">
         <div class="panel-title">Org memory</div>
-        <div class="panel-badge" id="memBadge">scan to populate</div>
+        <div class="panel-badge" id="memBadge">patterns</div>
       </div>
-      <div id="memoryList"></div>
+      <div id="memoryList">
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#9733;</div>
+          Failure patterns appear after scans
+        </div>
+      </div>
     </div>
-
   </div>
 
-  <!-- ACTIVITY / DEPS / JENKINS -->
+  <!-- THREE COL: ACTIVITY, DEPS, CI -->
   <div class="three-col">
-
-    <!-- ACTIVITY FEED -->
     <div class="panel tracker-panel">
       <div class="panel-header">
-        <div class="panel-title">Activity feed</div>
+        <div class="panel-title">Activity</div>
         <div class="panel-badge" id="activityBadge">PRs &amp; commits</div>
       </div>
       <div id="activityList" class="tracker-list">
-        <div class="tracker-empty">Scan a GitHub repo to see activity</div>
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#8644;</div>
+          Scan a GitHub repo to load activity
+        </div>
       </div>
     </div>
 
-    <!-- DEPENDENCY HEALTH -->
     <div class="panel tracker-panel">
       <div class="panel-header">
-        <div class="panel-title">Dependency health</div>
-        <div class="panel-badge" id="depsBadge">—</div>
+        <div class="panel-title">Dependencies</div>
+        <div class="panel-badge" id="depsBadge">health</div>
       </div>
       <div id="depsList" class="tracker-list">
-        <div class="tracker-empty">Scan a repo to validate dependencies</div>
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#9939;</div>
+          Dependency analysis runs with scan
+        </div>
       </div>
     </div>
 
-    <!-- CI STATUS -->
     <div class="panel tracker-panel">
       <div class="panel-header">
         <div class="panel-title">CI status</div>
-        <div class="panel-badge" id="ciBadge">not configured</div>
+        <div class="panel-badge" id="ciBadge">—</div>
       </div>
       <div id="ciList" class="tracker-list">
-        <div class="tracker-empty">Configure CI provider env vars to enable</div>
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#9654;</div>
+          CI providers detected after scan
+        </div>
       </div>
     </div>
 
+    <div class="panel tracker-panel">
+      <div class="panel-header">
+        <div class="panel-title">Secrets</div>
+        <div class="panel-badge" id="credsBadge">history dig</div>
+      </div>
+      <div id="credsList" class="tracker-list">
+        <div class="panel-empty">
+          <div class="panel-empty-icon">&#128274;</div>
+          Scans commit history for leaked credentials
+        </div>
+      </div>
+    </div>
   </div>
 
-  <!-- JOURNAL CHECKLIST -->
+  <!-- COMPLIANCE CHECK -->
   <div class="journal-bar" id="journalBar">
+    <div class="journal-label">Check your repo against an industry compliance standard</div>
     <select class="journal-select" id="journalSelect">
-      <option value="">Journal checklist</option>
-      <option value="nature">Nature Methods</option>
-      <option value="neurips">NeurIPS</option>
-      <option value="plos-one">PLOS ONE</option>
+      <option value="">Select a compliance standard...</option>
+      <option value="nature">Enterprise Production — env, seeds, tests, docs, license (9 checks)</option>
+      <option value="neurips">ML Reproducibility — training seeds, compute, data access (9 checks)</option>
+      <option value="plos-one">Open Source Release — license, docs, data availability (7 checks)</option>
     </select>
-    <button class="journal-btn" onclick="runJournalCheck()">Check</button>
+    <button class="journal-btn" onclick="runJournalCheck()">Audit</button>
+    <span class="journal-info-hint" title="Runs your repo against a specific compliance profile. Each profile maps SciGate dimension scores to industry-standard criteria.">&#9432;</span>
     <div class="journal-results" id="journalResults"></div>
   </div>
 
   <!-- BADGE -->
   <div class="badge-panel">
     <div class="panel-header">
-      <div class="panel-title">README badge</div>
+      <div class="panel-title">README Badge</div>
     </div>
-    <div class="badge-display">
-      <div class="badge-chip">
-        <div class="badge-left">SciGate</div>
-        <div class="badge-right" id="badgeScore" style="background:var(--text2);color:#0a0d12;">0 / 100</div>
-      </div>
+    <div class="badge-display" id="badgeDisplay">
+      <img id="badgeImg" src="https://img.shields.io/badge/SciGate-not%20scanned-lightgrey?style=for-the-badge&labelColor=08090d" alt="SciGate badge" style="height:28px;border-radius:4px;">
     </div>
     <div class="badge-embed">
-      <div class="badge-embed-label">Embed code</div>
+      <div class="badge-embed-label">Markdown — click to copy</div>
       <div class="badge-code" id="badgeCode" onclick="copyBadge()" title="Click to copy">
-        ![SciGate](https://img.shields.io/badge/SciGate-0%20%2F%20100-grey)
+        Run a scan to generate badge code
+      </div>
+    </div>
+    <div class="badge-embed" style="padding-top:0">
+      <div class="badge-embed-label">HTML — click to copy</div>
+      <div class="badge-code" id="badgeCodeHtml" onclick="copyBadgeHtml()" title="Click to copy">
+        Run a scan to generate HTML embed
       </div>
     </div>
   </div>
 
   <!-- GATE STATUS -->
   <div class="gate-panel" id="gatePanel">
-    <div class="gate-icon blocked" id="gateIcon">&times;</div>
+    <div class="gate-icon blocked" id="gateIcon">&#8862;</div>
     <div class="gate-body">
-      <div class="gate-title blocked" id="gateTitle">Submission tag blocked</div>
-      <div class="gate-sub" id="gateSub">Scan a repository to see gate status.</div>
+      <div class="gate-title" id="gateTitle">Merge gate</div>
+      <div class="gate-sub" id="gateSub">Run a scan to evaluate gate status</div>
     </div>
     <div class="gate-threshold" id="gateThreshold">
-      Threshold: 75 / 100<br>
-      <span style="color:var(--text2);font-size:11px">awaiting scan</span>
+      Threshold: 75 / 100
     </div>
   </div>
 
@@ -1250,7 +1467,307 @@ header {
   <div class="history-modal">
     <button class="history-close" onclick="closeHistory()">&times;</button>
     <h3>Score History</h3>
-    <div id="historyContent">No history available.</div>
+    <div id="historyContent">
+      <div style="color:var(--text3);padding:16px 0;text-align:center">
+        No scans recorded yet
+      </div>
+    </div>
+  </div>
+</div>
+
+<!-- HELP MODAL -->
+<div class="help-overlay" id="helpOverlay" onclick="if(event.target===this)closeHelp()">
+  <div class="help-modal">
+    <div class="help-header">
+      <h3><div class="help-logo"></div>SciGate Help</h3>
+      <button class="help-close" onclick="closeHelp()">&times;</button>
+    </div>
+    <div class="help-body">
+
+      <div class="help-section">
+        <div class="help-section-title">Getting Started</div>
+        <div class="help-tip">
+          <div class="help-tip-icon">&#9889;</div>
+          <div>
+            <strong>Quick start:</strong> Enter a GitHub repo (e.g. <code style="font-family:var(--mono);color:var(--amber)">owner/repo</code>) or a local path in the prompt and click <strong>Scan</strong>.
+            SciGate will analyze the repository across 6 reproducibility dimensions and return a score from 0 to 100.
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Dashboard Panels</div>
+        <div class="help-grid">
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9678;</span> Score Gauge</div>
+            <div class="help-card-desc">Overall reproducibility score (0–100) with letter grade. The gauge animates on each scan with color coding: teal for good, amber for fair, red for poor.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9638;</span> Dimensions</div>
+            <div class="help-card-desc">Six scored dimensions: Environment, Seeds, Data Provenance, Documentation, Testing, and Compliance. Each shows deduction reasons.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9881;</span> Recommended Fixes</div>
+            <div class="help-card-desc">AI-generated fixes ranked by ROI — showing recoverable points and estimated effort. Fixes never touch model/training code.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9733;</span> Org Memory</div>
+            <div class="help-card-desc">Recurring failure patterns detected across all scanned repositories. Shows frequency and trend direction (rising/falling).</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#8635;</span> Activity Feed</div>
+            <div class="help-card-desc">Recent pull requests and commits from the scanned GitHub repository. Shows PR status, commit SHAs, and authors.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9874;</span> Dependencies</div>
+            <div class="help-card-desc">Dependency health analysis: pin ratio, known CVEs, deprecated packages, and overall health grade (A–F).</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9998;</span> Compliance Audit</div>
+            <div class="help-card-desc">Checks your repo against an industry compliance profile (Enterprise Production, ML Reproducibility, or Open Source Release). Select a standard, click Audit, and see a pass/fail checklist.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9632;</span> Merge Gate</div>
+            <div class="help-card-desc">Shows whether the repo score meets the configured threshold (default: 75). Blocked repos cannot auto-merge in CI.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#128274;</span> Secrets</div>
+            <div class="help-card-desc">Digs through commit history for deleted or reverted credentials (API keys, tokens, private keys, connection strings). Also scans live files.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Scoring Rubric</div>
+        <table class="help-table">
+          <tr><th>Dimension</th><th>Max</th><th>What It Checks</th></tr>
+          <tr><td>Environment</td><td class="score-col">17</td><td>Lockfile, pinned deps, Dockerfile, CUDA, Python version</td></tr>
+          <tr><td>Seeds &amp; Determinism</td><td class="score-col">17</td><td>Random seeds, PYTHONHASHSEED, cudnn.deterministic</td></tr>
+          <tr><td>Data Provenance</td><td class="score-col">17</td><td>Download scripts, checksums, DVC/LFS, no hardcoded paths</td></tr>
+          <tr><td>Documentation</td><td class="score-col">17</td><td>Run instructions, hardware reqs, expected outputs, citation</td></tr>
+          <tr><td>Testing &amp; Validation</td><td class="score-col">17</td><td>Test suite, coverage, smoke tests, shape assertions</td></tr>
+          <tr><td>License &amp; Compliance</td><td class="score-col">15</td><td>LICENSE file, dependency license conflicts, NOTICE files</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Grade Thresholds</div>
+        <table class="help-table">
+          <tr><th>Grade</th><th>Range</th><th>Gate Behavior</th></tr>
+          <tr><td><span class="help-grade-dot" style="background:#00D4B1"></span> EXCELLENT</td><td class="score-col">90–100</td><td>Auto-approve</td></tr>
+          <tr><td><span class="help-grade-dot" style="background:#00D4B1"></span> GOOD</td><td class="score-col">75–89</td><td>Approve with suggestions</td></tr>
+          <tr><td><span class="help-grade-dot" style="background:#F5A623"></span> FAIR</td><td class="score-col">50–74</td><td>Block merge; draft PR opened</td></tr>
+          <tr><td><span class="help-grade-dot" style="background:#FF5E5E"></span> POOR</td><td class="score-col">25–49</td><td>Block merge; notify team lead</td></tr>
+          <tr><td><span class="help-grade-dot" style="background:#FF5E5E"></span> CRITICAL</td><td class="score-col">0–24</td><td>Block merge; escalation</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Compliance Audit Profiles</div>
+        <div class="help-tip" style="margin-bottom:14px">
+          <div class="help-tip-icon">&#9998;</div>
+          <div>
+            SciGate includes three compliance profiles that map your dimension scores to industry-standard criteria.
+            Select a profile from the dropdown, click <strong>Audit</strong>, and see a pass/fail checklist.
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Enterprise Production <span style="color:var(--text3);font-weight:400">— 9 checks</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Full-stack production readiness — environment, seeds, tests, docs, and licensing.</div>
+        <table class="help-table" style="margin-bottom:16px">
+          <tr><th>Criterion</th><th>What It Checks</th></tr>
+          <tr><td>Code availability</td><td>Source code is accessible and runnable</td></tr>
+          <tr><td>Data availability</td><td>Datasets have download scripts or are DVC-tracked</td></tr>
+          <tr><td>Software deps specified</td><td>All dependencies are listed with pinned versions</td></tr>
+          <tr><td>Random seeds documented</td><td>Stochastic processes use fixed, documented seeds</td></tr>
+          <tr><td>Methodology described</td><td>Approach and architecture are documented</td></tr>
+          <tr><td>Hardware specification</td><td>GPU/CPU/RAM requirements are stated</td></tr>
+          <tr><td>Expected runtime</td><td>Pipeline execution time is documented</td></tr>
+          <tr><td>Step-by-step reproduction</td><td>Clear instructions to reproduce results end-to-end</td></tr>
+          <tr><td>License specified</td><td>A LICENSE file exists in the repository</td></tr>
+        </table>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">ML Reproducibility <span style="color:var(--text3);font-weight:400">— 9 checks</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">ML/AI-specific — training seeds, hyperparameters, compute costs, and evaluation metrics.</div>
+        <table class="help-table" style="margin-bottom:16px">
+          <tr><th>Criterion</th><th>What It Checks</th></tr>
+          <tr><td>Code submitted</td><td>Code is present in the repository</td></tr>
+          <tr><td>Training seeds specified</td><td>Model training uses documented random seeds</td></tr>
+          <tr><td>Dependencies pinned</td><td>All packages are version-locked</td></tr>
+          <tr><td>Hyperparameters documented</td><td>Model config and tuning params are in docs</td></tr>
+          <tr><td>Compute requirements stated</td><td>Hardware needs (GPU type, memory) are documented</td></tr>
+          <tr><td>Expected runtime stated</td><td>Training/inference time is documented</td></tr>
+          <tr><td>Dataset access instructions</td><td>Data download or generation steps are provided</td></tr>
+          <tr><td>Evaluation metrics</td><td>Results include statistical significance measures</td></tr>
+          <tr><td>License included</td><td>A LICENSE file exists in the repository</td></tr>
+        </table>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:6px">Open Source Release <span style="color:var(--text3);font-weight:400">— 7 checks</span></div>
+        <div style="font-size:11px;color:var(--text2);margin-bottom:4px">Open-source release readiness — public data, documentation, versioned dependencies, and licensing.</div>
+        <table class="help-table">
+          <tr><th>Criterion</th><th>What It Checks</th></tr>
+          <tr><td>Data deposited / accessible</td><td>Data is in a public repo or has download instructions</td></tr>
+          <tr><td>Data download instructions</td><td>Steps to retrieve data are documented</td></tr>
+          <tr><td>Code availability statement</td><td>Code is accessible with basic setup instructions</td></tr>
+          <tr><td>Software versions specified</td><td>All dependency versions are pinned</td></tr>
+          <tr><td>Pipeline scripts provided</td><td>Full analysis or build scripts are included</td></tr>
+          <tr><td>Reproducible execution</td><td>Computations use fixed seeds and are deterministic</td></tr>
+          <tr><td>License specified</td><td>A LICENSE file exists in the repository</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Repo Map</div>
+        <div class="help-tip" style="margin-bottom:14px">
+          <div class="help-tip-icon">&#128506;</div>
+          <div>
+            The <strong>Repo Map</strong> auto-generates a full structural overview of any repository after scanning.
+            Click the <strong>Map</strong> button in the header (or press <span class="help-kbd">M</span>) to open it. It shows:
+          </div>
+        </div>
+        <div class="help-grid">
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9638;</span> Language Breakdown</div>
+            <div class="help-card-desc">Color-coded bar showing the percentage of each programming language, with file counts and sample files.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#128193;</span> Directory Tree</div>
+            <div class="help-card-desc">Visual tree of the repo's directory structure with file counts per directory.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9733;</span> Key Files</div>
+            <div class="help-card-desc">Detects README, LICENSE, Dockerfile, requirements.txt, CI configs, DVC, MLflow, citation files, and more.</div>
+          </div>
+          <div class="help-card">
+            <div class="help-card-title"><span class="hicon">&#9888;</span> AI Config Detection</div>
+            <div class="help-card-desc">Flags AI editor config files (.cursorrules, CLAUDE.md, mcp.json, etc.) that could be repo poisoning attack vectors.</div>
+          </div>
+        </div>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">AI Config / Repo Poisoning Detection</div>
+        <div class="help-tip" style="margin-bottom:14px">
+          <div class="help-tip-icon">&#9888;</div>
+          <div>
+            Inspired by <a href="https://github.com/Pantheon-Security/medusa" style="color:var(--amber)" target="_blank">Medusa Security Scanner</a>,
+            SciGate detects AI editor configuration files that are known repo poisoning vectors. These files can inject
+            malicious instructions into AI coding assistants (Cursor, Cline, Copilot, Claude Code, Gemini, etc.).
+          </div>
+        </div>
+        <table class="help-table">
+          <tr><th>Risk</th><th>File</th><th>Attack</th></tr>
+          <tr><td><span class="map-ai-risk critical">CRITICAL</span></td><td style="font-family:var(--mono);font-size:11px">.cursorrules</td><td>CurXecute RCE (CVE-2025-54135)</td></tr>
+          <tr><td><span class="map-ai-risk critical">CRITICAL</span></td><td style="font-family:var(--mono);font-size:11px">.cursor/mcp.json</td><td>MCP tool poisoning</td></tr>
+          <tr><td><span class="map-ai-risk critical">CRITICAL</span></td><td style="font-family:var(--mono);font-size:11px">.clinerules/</td><td>Clinejection</td></tr>
+          <tr><td><span class="map-ai-risk critical">CRITICAL</span></td><td style="font-family:var(--mono);font-size:11px">.windsurfrules</td><td>Windsurf RCE (CVE-2025-36730)</td></tr>
+          <tr><td><span class="map-ai-risk critical">CRITICAL</span></td><td style="font-family:var(--mono);font-size:11px">.codex/config.toml</td><td>Codex CLI RCE (CVE-2025-61260)</td></tr>
+          <tr><td><span class="map-ai-risk high">HIGH</span></td><td style="font-family:var(--mono);font-size:11px">CLAUDE.md</td><td>Prompt injection into Claude Code</td></tr>
+          <tr><td><span class="map-ai-risk high">HIGH</span></td><td style="font-family:var(--mono);font-size:11px">AGENTS.md</td><td>Prompt injection into OpenAI Codex</td></tr>
+          <tr><td><span class="map-ai-risk high">HIGH</span></td><td style="font-family:var(--mono);font-size:11px">mcp.json</td><td>MCP server config — tool poisoning risk</td></tr>
+          <tr><td><span class="map-ai-risk medium">MEDIUM</span></td><td style="font-family:var(--mono);font-size:11px">SKILL.md</td><td>ToxicSkills attack surface</td></tr>
+          <tr><td><span class="map-ai-risk medium">MEDIUM</span></td><td style="font-family:var(--mono);font-size:11px">copilot-instructions.md</td><td>Custom Copilot instructions</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Credential History Digger</div>
+        <div class="help-tip" style="margin-bottom:14px">
+          <div class="help-tip-icon">&#128274;</div>
+          <div>
+            The <strong>Secrets</strong> panel scans both current files and deleted/reverted commits for leaked credentials.
+            Even if a secret was committed and then removed, it remains in git history and can be extracted by attackers.
+            SciGate flags these so you can <strong>rotate the credentials immediately</strong>.
+          </div>
+        </div>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Detected Secret Types</div>
+        <table class="help-table" style="margin-bottom:14px">
+          <tr><th>Pattern</th><th>Example Prefix</th></tr>
+          <tr><td>AWS Access Key</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">AKIA...</td></tr>
+          <tr><td>GitHub Token / PAT</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">ghp_... / github_pat_...</td></tr>
+          <tr><td>OpenAI / Stripe Secret Key</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">sk-...</td></tr>
+          <tr><td>Anthropic API Key</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">sk-ant-...</td></tr>
+          <tr><td>Google API Key / OAuth</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">AIza... / ya29....</td></tr>
+          <tr><td>Slack Token</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">xoxb-...</td></tr>
+          <tr><td>Private Keys (RSA, EC, SSH)</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">-----BEGIN PRIVATE KEY-----</td></tr>
+          <tr><td>Database Connection Strings</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">postgres://user:pass@...</td></tr>
+          <tr><td>JWT Tokens</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">eyJ...</td></tr>
+          <tr><td>Hardcoded Secrets</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">password = "..."</td></tr>
+          <tr><td>npm / PyPI Tokens</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">npm_... / pypi-...</td></tr>
+        </table>
+        <div style="font-size:12px;font-weight:600;color:var(--text);margin-bottom:8px">Severity Levels</div>
+        <table class="help-table">
+          <tr><th>Level</th><th>Meaning</th></tr>
+          <tr><td><span class="cred-severity-badge clean">CLEAN</span></td><td>No credentials found in current files or commit history</td></tr>
+          <tr><td><span class="cred-severity-badge warning">WARNING</span></td><td>Credentials found only in deleted/reverted commits — still extractable from git history</td></tr>
+          <tr><td><span class="cred-severity-badge critical">CRITICAL</span></td><td>Live credentials in current files, or many historical leaks — rotate immediately</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Scan Input Formats</div>
+        <table class="help-table">
+          <tr><th>Format</th><th>Example</th></tr>
+          <tr><td>GitHub shorthand</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">owner/repo</td></tr>
+          <tr><td>GitHub URL</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">https://github.com/owner/repo</td></tr>
+          <tr><td>Branch / ref</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">owner/repo/tree/branch-name</td></tr>
+          <tr><td>Local path</td><td style="font-family:var(--mono);font-size:11px;color:var(--amber)">/Users/me/project</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">Keyboard Shortcuts</div>
+        <table class="help-table">
+          <tr><th>Key</th><th>Action</th></tr>
+          <tr><td><span class="help-kbd">?</span></td><td>Open / close this help panel</td></tr>
+          <tr><td><span class="help-kbd">Esc</span></td><td>Close any open modal</td></tr>
+          <tr><td><span class="help-kbd">H</span></td><td>Open scan history</td></tr>
+          <tr><td><span class="help-kbd">M</span></td><td>Open repo map</td></tr>
+          <tr><td><span class="help-kbd">/</span></td><td>Focus the scan input</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">API Endpoints</div>
+        <table class="help-table">
+          <tr><th>Method</th><th>Endpoint</th><th>Description</th></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">POST</td><td style="font-family:var(--mono);font-size:11px">/v1/scan</td><td>Scan a repo (local or remote)</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">GET</td><td style="font-family:var(--mono);font-size:11px">/v1/leaderboard</td><td>Org-wide leaderboard &amp; patterns</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">GET</td><td style="font-family:var(--mono);font-size:11px">/v1/repo/{owner}/{repo}/history</td><td>Scan history for a repo</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">POST</td><td style="font-family:var(--mono);font-size:11px">/v1/dependencies</td><td>Dependency health check</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">POST</td><td style="font-family:var(--mono);font-size:11px">/v1/credentials</td><td>Credential history scan (live + deleted secrets)</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">GET</td><td style="font-family:var(--mono);font-size:11px">/v1/activity/{owner}/{repo}</td><td>PRs and commits</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">POST</td><td style="font-family:var(--mono);font-size:11px">/v1/journal-check</td><td>Compliance audit check</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">GET</td><td style="font-family:var(--mono);font-size:11px">/v1/certificate/{owner}/{repo}</td><td>Reproducibility certificate</td></tr>
+          <tr><td style="font-family:var(--mono);font-size:10px;color:var(--teal)">POST</td><td style="font-family:var(--mono);font-size:11px">/v1/webhooks/github</td><td>GitHub webhook receiver</td></tr>
+        </table>
+      </div>
+
+      <div class="help-section">
+        <div class="help-section-title">About</div>
+        <div class="help-tip">
+          <div class="help-tip-icon">&#9733;</div>
+          <div>
+            <strong>SciGate v2.1</strong> — Scientific Reproducibility Intelligence Platform.<br>
+            A 5-agent pipeline (Audit, Fix, Memory, Regression, Notify) that assigns a defensible 0–100 reproducibility score, generates targeted AI-authored fixes, enforces org-level quality gates, and learns continuously from every scan.
+            100% open-source infrastructure — no vendor lock-in.
+          </div>
+        </div>
+      </div>
+
+    </div>
+  </div>
+</div>
+
+<!-- REPO MAP MODAL -->
+<div class="map-overlay" id="mapOverlay" onclick="if(event.target===this)closeRepoMap()">
+  <div class="map-modal">
+    <div class="map-header">
+      <h3>Repo Map</h3>
+      <button class="map-close" onclick="closeRepoMap()">&times;</button>
+    </div>
+    <div class="map-body" id="mapContent">
+      <div style="color:var(--text3);padding:24px 0;text-align:center">
+        Run a scan to generate the repository map
+      </div>
+    </div>
   </div>
 </div>
 
@@ -1266,21 +1783,25 @@ function esc(s) {
 // ─── STATE ───────────────────────────────────────────────────────────────────
 
 const STATE = {
-  score: 0,
+  score: null,
   scores: { env: 0, seeds: 0, data: 0, docs: 0, testing: 0, compliance: 0 },
-  domain: '—',
-  grade: '—',
+  domain: null,
+  grade: null,
   history: [],
   fixes: [],
   dimNotes: { env: '', seeds: '', data: '', docs: '', testing: '', compliance: '' },
   memory: [],
   appliedFixes: new Set(),
   scanning: false,
+  projectedScore: null,
+  projectedGrade: null,
+  totalEffort: null,
 };
 
 let GATE_THRESHOLD = 75;
 let LAST_REPO_SLUG = null;
 let LAST_SCAN_REF = 'main';
+let HAS_SCANNED = false;
 
 const GRADE_MAP = [
   [90, 'EXCELLENT', 'brightgreen'],
@@ -1323,7 +1844,7 @@ function setGaugeValue(score) {
   const numEl = document.getElementById('gaugeNum');
   const gradeEl = document.getElementById('gaugeGrade');
   const prev = parseInt(numEl.textContent) || 0;
-  const { label, color } = getGrade(score);
+  const { label } = getGrade(score);
 
   const arc = 565 * 0.75;
   const used = arc * (score / 100);
@@ -1335,7 +1856,7 @@ function setGaugeValue(score) {
   gradeEl.style.color = colorVar;
   gradeEl.textContent = label;
 
-  animateCount(numEl, prev, score, 1400);
+  animateCount(numEl, prev, score, 1600);
 }
 
 // ─── RENDER ──────────────────────────────────────────────────────────────────
@@ -1352,24 +1873,35 @@ function renderDimensions() {
 
   dims.forEach((d, i) => {
     const card = document.getElementById('dim' + i);
-    const cls = d.score > 0 ? getColor(d.score, d.max) : '';
+    const cls = HAS_SCANNED ? getColor(d.score, d.max) : '';
     card.className = 'dim-card ' + cls;
 
     const scoreEl = document.getElementById('dimScore' + i);
-    const prev = parseInt(scoreEl.textContent) || 0;
-    animateCount(scoreEl, prev, d.score, 800);
+    if (HAS_SCANNED) {
+      const prev = parseInt(scoreEl.textContent) || 0;
+      animateCount(scoreEl, prev, d.score, 900);
+    }
 
     setTimeout(() => {
-      document.getElementById('bar' + i).style.width = (d.score / d.max * 100) + '%';
+      document.getElementById('bar' + i).style.width = HAS_SCANNED ? (d.score / d.max * 100) + '%' : '0%';
     }, 200 + i * 80);
 
     const note = STATE.dimNotes[d.key];
-    document.getElementById('dimNote' + i).textContent = note || (d.score > 0 ? 'No specific issues flagged.' : 'Scan a repo to see results');
+    document.getElementById('dimNote' + i).textContent = HAS_SCANNED
+      ? (note || (d.score >= d.max ? 'Full score — no issues.' : 'No specific issues flagged.'))
+      : '';
   });
 }
 
 function renderFixes() {
   const list = document.getElementById('fixList');
+  if (!STATE.fixes.length) {
+    list.innerHTML = HAS_SCANNED
+      ? '<div class="panel-empty"><div class="panel-empty-icon">&#10003;</div>No fixes needed — all dimensions healthy</div>'
+      : '<div class="panel-empty"><div class="panel-empty-icon">&#9881;</div>Run a scan to surface prioritized fixes</div>';
+    document.getElementById('fixBadge').textContent = HAS_SCANNED ? 'all clear' : 'ranked by ROI';
+    return;
+  }
   list.innerHTML = STATE.fixes.map((f, i) => `
     <div class="fix-item${STATE.appliedFixes.has(i) ? ' applied' : ''}" onclick="toggleFix(${i})" data-fix="${i}">
       <div class="fix-index">${String(f.rank).padStart(2, '0')}</div>
@@ -1384,12 +1916,15 @@ function renderFixes() {
       </div>
     </div>
   `).join('');
-  document.getElementById('fixBadge').textContent =
-    STATE.fixes.length ? STATE.fixes.length + ' fixes · ranked by ROI' : 'no fixes needed';
+  document.getElementById('fixBadge').textContent = STATE.fixes.length + ' fixes · ranked by ROI';
 }
 
 function renderMemory() {
   const list = document.getElementById('memoryList');
+  if (!STATE.memory.length) {
+    list.innerHTML = '<div class="panel-empty"><div class="panel-empty-icon">&#9733;</div>Failure patterns appear after scans</div>';
+    return;
+  }
   list.innerHTML = STATE.memory.map(m => `
     <div class="memory-item">
       <div class="memory-freq">${esc(String(m.freq))}</div>
@@ -1403,16 +1938,22 @@ function renderMemory() {
 }
 
 function renderSparkline() {
+  if (!STATE.history.length) return;
   const el = document.getElementById('sparkline');
+  const wrap = document.getElementById('sparklineWrap');
+  const label = document.getElementById('sparklineLabel');
   const max = Math.max(...STATE.history, 100);
   el.innerHTML = STATE.history.map((v, i) => {
     const h = Math.max(4, (v / max) * 24);
     const color = v >= 75 ? 'var(--teal)' : v >= 50 ? 'var(--amber)' : 'var(--red)';
-    return `<div class="spark-bar" style="height:${h}px;background:${color};opacity:${0.4 + (i / STATE.history.length) * 0.6}"></div>`;
+    return `<div class="spark-bar" style="height:${h}px;background:${color};opacity:${0.3 + (i / STATE.history.length) * 0.7}"></div>`;
   }).join('');
+  label.textContent = `last ${STATE.history.length} scan${STATE.history.length !== 1 ? 's' : ''}`;
+  wrap.classList.add('visible');
 }
 
 function renderGate() {
+  if (!HAS_SCANNED) return;
   const panel = document.getElementById('gatePanel');
   const icon = document.getElementById('gateIcon');
   const title = document.getElementById('gateTitle');
@@ -1427,8 +1968,8 @@ function renderGate() {
     icon.innerHTML = '&#10003;';
     title.className = 'gate-title cleared';
     title.textContent = 'Merge gate cleared';
-    sub.textContent = `Score meets the ${t}-point threshold.`;
-    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--teal);font-size:11px">Cleared by ${s - t} points</span>`;
+    sub.textContent = `Score ${s} meets the ${t}-point threshold.`;
+    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--teal);font-size:10px">Cleared +${s - t} pts</span>`;
   } else {
     panel.classList.remove('cleared');
     icon.className = 'gate-icon blocked';
@@ -1436,26 +1977,44 @@ function renderGate() {
     title.className = 'gate-title blocked';
     title.textContent = 'Merge gate blocked';
     const topFix = STATE.fixes[0];
-    sub.textContent = `Score ${s} is below the ${t}-point threshold.${topFix ? ` Top fix recovers +${topFix.points} pts.` : ''}`;
-    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--red2);font-size:11px">&minus;${t - s} points needed</span>`;
+    sub.textContent = `Score ${s} is ${t - s} points below threshold.${topFix ? ` Top fix: +${topFix.points} pts.` : ''}`;
+    thresh.innerHTML = `Threshold: ${t} / 100<br><span style="color:var(--red);font-size:10px">&minus;${t - s} pts needed</span>`;
   }
 }
 
 function renderBadge() {
-  const el = document.getElementById('badgeScore');
+  const img = document.getElementById('badgeImg');
   const code = document.getElementById('badgeCode');
+  const htmlCode = document.getElementById('badgeCodeHtml');
+  if (!HAS_SCANNED) return;
   const s = STATE.score;
-  el.textContent = s + ' / 100';
-  const bg = s >= 75 ? 'var(--teal)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
-  el.style.background = bg;
-  el.style.color = s >= 50 ? '#0a0d12' : '#fff';
-  const repo = document.getElementById('repoName').textContent.trim();
-  const color = s >= 75 ? 'brightgreen' : s >= 50 ? 'yellow' : 'red';
-  code.textContent = `![SciGate](https://img.shields.io/badge/SciGate-${s}%20%2F%20100-${color})`;
+  const g = STATE.grade || 'UNKNOWN';
+  const colors = { EXCELLENT:'brightgreen', GOOD:'green', FAIR:'yellow', POOR:'orange', CRITICAL:'red' };
+  const color = colors[g] || 'lightgrey';
+  const label = `${s}%20%2F%20100%20${g}`;
+  const badgeUrl = `https://img.shields.io/badge/SciGate-${label}-${color}?style=for-the-badge&labelColor=08090d`;
+  img.src = badgeUrl;
+  img.alt = `SciGate ${s}/100 ${g}`;
+
+  const repo = LAST_REPO_SLUG || 'owner/repo';
+  const dynamicUrl = `${location.origin}/v1/badge/${repo}`;
+  code.textContent = `![SciGate Score](${dynamicUrl})`;
+  htmlCode.textContent = `<a href="${location.origin}"><img src="${dynamicUrl}" alt="SciGate Score"></a>`;
+}
+
+function copyBadgeHtml() {
+  const el = document.getElementById('badgeCodeHtml');
+  navigator.clipboard.writeText(el.textContent.trim()).catch(() => {});
+  const orig = el.textContent;
+  el.textContent = 'Copied!';
+  el.classList.add('copied');
+  setTimeout(() => { el.textContent = orig; el.classList.remove('copied'); }, 1200);
 }
 
 function renderAll() {
-  setGaugeValue(STATE.score);
+  if (HAS_SCANNED && STATE.score !== null) {
+    setGaugeValue(STATE.score);
+  }
   renderDimensions();
   renderFixes();
   renderMemory();
@@ -1467,21 +2026,16 @@ function renderAll() {
 // ─── INTERACTIONS ────────────────────────────────────────────────────────────
 
 function toggleFix(i) {
-  if (STATE.appliedFixes.has(i)) {
-    STATE.appliedFixes.delete(i);
-  } else {
-    STATE.appliedFixes.add(i);
-  }
+  if (STATE.appliedFixes.has(i)) STATE.appliedFixes.delete(i);
+  else STATE.appliedFixes.add(i);
   const el = document.querySelector(`[data-fix="${i}"]`);
-  el.classList.toggle('applied');
+  if (el) el.classList.toggle('applied');
 
   let recovered = 0;
   STATE.appliedFixes.forEach(idx => { recovered += STATE.fixes[idx].points; });
-  const projected = Math.min(STATE.score + recovered, 100);
-
   document.getElementById('fixBadge').textContent = recovered > 0
     ? `+${recovered} pts if applied`
-    : 'ranked by ROI';
+    : STATE.fixes.length + ' fixes · ranked by ROI';
 }
 
 function scanStart() {
@@ -1498,8 +2052,8 @@ function scanStart() {
   bar.style.width = '0%';
   STATE.appliedFixes = new Set();
 
-  [15, 35, 55, 75, 90].forEach((w, i) => {
-    setTimeout(() => { bar.style.width = w + '%'; }, 300 * (i + 1));
+  [12, 30, 50, 70, 85].forEach((w, i) => {
+    setTimeout(() => { bar.style.width = w + '%'; }, 400 * (i + 1));
   });
 }
 
@@ -1510,19 +2064,17 @@ function scanEnd() {
   const bar = document.getElementById('scanProgressBar');
 
   bar.style.width = '100%';
-  setTimeout(() => {
-    progress.classList.remove('active');
-    bar.style.width = '0%';
-  }, 300);
+  setTimeout(() => { progress.classList.remove('active'); bar.style.width = '0%'; }, 400);
 
-  btn.textContent = 'Scan repo';
+  btn.textContent = 'Scan';
   btn.disabled = false;
   btn.classList.remove('scanning');
-  if (headerBtn) { headerBtn.textContent = 'Scan repo'; headerBtn.disabled = false; }
+  if (headerBtn) { headerBtn.textContent = 'Scan'; headerBtn.disabled = false; }
   STATE.scanning = false;
 }
 
 function applyResult(data) {
+  HAS_SCANNED = true;
   const s = data.scores || data.score || {};
   STATE.score = Math.round(s.total || s.total_score || 0);
   STATE.grade = data.grade || s.grade || getGrade(STATE.score).label;
@@ -1549,6 +2101,8 @@ function applyResult(data) {
       explanation: f.explanation || '',
       effort: f.effort_label || '',
     }));
+  } else {
+    STATE.fixes = [];
   }
 
   STATE.dimNotes = { env: '', seeds: '', data: '', docs: '', testing: '', compliance: '' };
@@ -1559,37 +2113,45 @@ function applyResult(data) {
     if (dimFixes.length) {
       STATE.dimNotes[key] = dimFixes.map(f => f.title).join('. ') + '.';
     } else if (STATE.scores[key] >= (dimMaxMap[key] || 17)) {
-      STATE.dimNotes[key] = 'Full score — no issues found.';
-    } else {
-      STATE.dimNotes[key] = 'No specific issues flagged.';
+      STATE.dimNotes[key] = 'Full score — no issues.';
     }
   }
 
   STATE.history.push(STATE.score);
-  if (STATE.history.length > 8) STATE.history.shift();
+  if (STATE.history.length > 10) STATE.history.shift();
 
-  // Use gate threshold from API if available
   if (data.gate_threshold != null) GATE_THRESHOLD = data.gate_threshold;
   const gateBlocked = data.gate_blocked ?? (STATE.score < GATE_THRESHOLD);
 
-  document.getElementById('domainTag').textContent = STATE.domain;
+  // Domain tag
+  const domainTag = document.getElementById('domainTag');
+  domainTag.textContent = STATE.domain;
+  domainTag.classList.add('visible');
+
+  // Commit bar
+  const commitBar = document.getElementById('commitBar');
   document.getElementById('commitDomain').textContent = STATE.domain;
-  document.getElementById('commitSha').textContent = data.commit_sha ? data.commit_sha.substring(0, 7) : '—';
+  const sha = data.commit_sha || '';
+  document.getElementById('commitSha').textContent = (sha && sha !== 'unknown') ? sha.substring(0, 7) : 'HEAD';
   document.getElementById('commitGrade').textContent = STATE.grade;
   document.getElementById('commitGate').textContent = gateBlocked ? 'BLOCKED' : 'CLEAR';
   document.getElementById('commitGate').style.color = gateBlocked ? 'var(--red)' : 'var(--teal)';
   document.getElementById('commitTime').textContent = new Date().toLocaleTimeString();
   document.getElementById('commitMsg').textContent = STATE.score + '/100';
+  commitBar.classList.add('visible');
 
-  // Projected score bar — show whenever there are recoverable points
+  // Repo pill active state
+  document.getElementById('repoPill').classList.add('active');
+
+  // Projected score bar
   const projBar = document.getElementById('projectedBar');
   if (STATE.totalEffort || STATE.projectedScore > STATE.score) {
-    projBar.style.display = 'flex';
     document.getElementById('projectedScore').textContent = STATE.projectedScore;
     document.getElementById('projectedGrade').textContent = STATE.projectedGrade || '';
-    document.getElementById('projectedEffort').textContent = STATE.totalEffort || '—';
+    document.getElementById('projectedEffort').textContent = STATE.totalEffort || '';
+    projBar.classList.add('visible');
   } else {
-    projBar.style.display = 'none';
+    projBar.classList.remove('visible');
   }
 
   // Regression banner
@@ -1598,7 +2160,7 @@ function applyResult(data) {
     regBar.style.display = 'flex';
     const delta = data.regression.score_delta || 0;
     document.getElementById('regressionMsg').textContent =
-      `Score dropped ${Math.abs(delta)} pts from previous scan (${data.regression.previous_score || '?'} → ${STATE.score})`;
+      `Score dropped ${Math.abs(delta)} pts (${data.regression.previous_score || '?'} \u2192 ${STATE.score})`;
   } else {
     regBar.style.display = 'none';
   }
@@ -1607,23 +2169,25 @@ function applyResult(data) {
   const certLink = document.getElementById('certLink');
   const repoSlug = (data.repo?.owner && data.repo?.name)
     ? `${data.repo.owner}/${data.repo.name}`
-    : document.getElementById('repoName').textContent.trim();
-  if (repoSlug && repoSlug !== 'your-repo') {
+    : (LAST_REPO_SLUG || '');
+  if (repoSlug) {
     certLink.href = `/v1/certificate/${repoSlug}`;
     certLink.style.display = 'inline-flex';
-    LAST_REPO_SLUG = repoSlug;
   }
 
-  // Memory from scan response (don't clobber later with fetchMemory)
+  // Memory from scan response
   if (data.memory && data.memory.top_patterns) {
-    STATE.memory = data.memory.top_patterns.map(p => ({
-      freq: p.count || 0,
-      pattern: p.description || p.id || 'Unknown',
-      repos: (p.repos || []).slice(0, 3).join(' · ') + ((p.repos || []).length > 3 ? ` +${p.repos.length - 3}` : ''),
-      trend: 'up',
-      delta: `${(p.repos || []).length} repo${(p.repos || []).length !== 1 ? 's' : ''}`,
-    }));
-    document.getElementById('memBadge').textContent = (data.memory.top_patterns.length || 0) + ' patterns';
+    STATE.memory = data.memory.top_patterns
+      .filter(p => p.repos && p.repos.some(r => r))
+      .map(p => ({
+        freq: p.count || 0,
+        pattern: p.description || p.id || 'Unknown',
+        repos: (p.repos || []).filter(r => r).slice(0, 3).join(' \u00b7 ') +
+          ((p.repos || []).filter(r => r).length > 3 ? ` +${(p.repos || []).filter(r => r).length - 3}` : ''),
+        trend: 'up',
+        delta: `${(p.repos || []).filter(r => r).length} repo${(p.repos || []).filter(r => r).length !== 1 ? 's' : ''}`,
+      }));
+    document.getElementById('memBadge').textContent = STATE.memory.length + ' patterns';
   }
 
   renderAll();
@@ -1636,97 +2200,102 @@ async function runScan() {
 
   const raw = document.getElementById('repoInput').value.trim();
 
-  if (raw) {
-    const isLocal = raw.startsWith('/') || raw.startsWith('~') || raw.startsWith('.');
-    let githubRepo = null;
-    let localPath = null;
-    let repoLabel = raw;
+  if (!raw) {
+    scanEnd();
+    document.getElementById('heroDesc').innerHTML =
+      '<span style="color:var(--amber)">Enter a GitHub repo or local path above.</span>';
+    return;
+  }
 
-    let ref = 'main';
-    if (isLocal) {
-      localPath = raw;
-      const parts = raw.replace(/\/$/, '').split('/');
-      repoLabel = parts.slice(-2).join(' / ');
+  const isLocal = raw.startsWith('/') || raw.startsWith('~') || raw.startsWith('.');
+  let githubRepo = null;
+  let localPath = null;
+  let repoLabel = raw;
+  let ref = 'main';
+
+  if (isLocal) {
+    localPath = raw;
+    const parts = raw.replace(/\/$/, '').split('/');
+    repoLabel = parts.slice(-2).join(' / ');
+  } else {
+    let cleaned = raw.replace(/^https?:\/\/(www\.)?github\.com\//, '');
+    cleaned = cleaned.replace(/\.git$/, '').replace(/\/$/, '').replace(/^\/+/, '');
+    const treeParts = cleaned.match(/^([^/]+\/[^/]+)\/tree\/(.+)/);
+    const prParts = cleaned.match(/^([^/]+\/[^/]+)\/pull\/(\d+)/);
+    if (treeParts) {
+      githubRepo = treeParts[1];
+      ref = treeParts[2].split('/')[0];
+      repoLabel = githubRepo.replace(/\//g, ' / ') + ' @ ' + ref;
+    } else if (prParts) {
+      githubRepo = prParts[1];
+      ref = 'main';
+      repoLabel = githubRepo.replace(/\//g, ' / ') + ' PR #' + prParts[2];
     } else {
-      let cleaned = raw.replace(/^https?:\/\/(www\.)?github\.com\//, '');
-      cleaned = cleaned.replace(/\.git$/, '').replace(/\/$/, '');
-      cleaned = cleaned.replace(/^\/+/, '');
-      const treeParts = cleaned.match(/^([^/]+\/[^/]+)\/tree\/(.+)/);
-      const prParts = cleaned.match(/^([^/]+\/[^/]+)\/pull\/(\d+)/);
-      if (treeParts) {
-        githubRepo = treeParts[1];
-        ref = treeParts[2].split('/')[0];
-        repoLabel = githubRepo.replace(/\//g, ' / ') + ' @ ' + ref;
-      } else if (prParts) {
-        githubRepo = prParts[1];
-        ref = 'main';
-        repoLabel = githubRepo.replace(/\//g, ' / ') + ' PR #' + prParts[2];
-      } else {
-        const slashParts = cleaned.split('/');
-        githubRepo = slashParts.slice(0, 2).join('/');
-        repoLabel = githubRepo.replace(/\//g, ' / ');
-      }
+      const slashParts = cleaned.split('/');
+      githubRepo = slashParts.slice(0, 2).join('/');
+      repoLabel = githubRepo.replace(/\//g, ' / ');
     }
+  }
 
-    try {
-      LAST_SCAN_REF = ref;
-      const body = localPath
-        ? { local_path: localPath }
-        : { github_repo: githubRepo, ref: ref };
+  try {
+    LAST_SCAN_REF = ref;
+    LAST_REPO_SLUG = githubRepo || raw.replace(/\/$/, '').split('/').pop();
+    const body = localPath
+      ? { local_path: localPath }
+      : { github_repo: githubRepo, ref: ref };
 
-      const resp = await fetch('/v1/scan', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(body),
-      });
-      if (resp.ok) {
-        const data = await resp.json();
-        applyResult(data);
-        document.getElementById('heroTitle').textContent = repoLabel;
-        document.getElementById('repoName').textContent = githubRepo || raw.replace(/\/$/, '').split('/').slice(-2).join('/');
-        const nFixes = (data.fixes || []).length;
-        const mode = githubRepo ? 'remote' : 'local';
-        document.getElementById('heroDesc').innerHTML =
-          `<span style="font-family:var(--mono);color:var(--amber)">${data.domain || 'general'}</span> · ` +
-          `${mode} · ${nFixes} fix${nFixes !== 1 ? 'es' : ''} found · ${data.scan_duration_ms || '?'}ms`;
-        fetchMemory();
-        if (githubRepo) {
-          fetchActivity(githubRepo);
-          fetchDependencies(githubRepo, false);
-        } else if (localPath) {
-          fetchDependencies(localPath, true);
-        }
-        fetchCI();
-        scanEnd();
-        return;
-      } else {
-        const err = await resp.json().catch(() => ({}));
-        document.getElementById('heroDesc').innerHTML =
-          `<span style="color:var(--red)">${err.detail || err.error || 'Scan failed'}</span>`;
-      }
-    } catch (e) {
+    const resp = await fetch('/v1/scan', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (resp.ok) {
+      const data = await resp.json();
+      applyResult(data);
+      document.getElementById('heroTitle').textContent = repoLabel;
+      document.getElementById('repoName').textContent = githubRepo || raw.replace(/\/$/, '').split('/').slice(-2).join('/');
+      const nFixes = (data.fixes || []).length;
+      const mode = githubRepo ? 'remote' : 'local';
+      const dur = data.scan_duration_ms ? (data.scan_duration_ms / 1000).toFixed(1) + 's' : '';
       document.getElementById('heroDesc').innerHTML =
-        `<span style="color:var(--red)">API not reachable — is the server running on this host?</span>`;
+        `<span style="font-family:var(--mono);color:var(--amber)">${esc(data.domain || 'general')}</span> \u00b7 ` +
+        `${mode} \u00b7 ${nFixes} fix${nFixes !== 1 ? 'es' : ''} \u00b7 ${dur}`;
+      fetchMemory();
+      if (data.credentials) {
+        renderCredentials(data.credentials);
+      }
+      if (data.repo_map) {
+        renderRepoMap(data.repo_map);
+      }
+      if (githubRepo) {
+        fetchActivity(githubRepo);
+        fetchDependencies(githubRepo, false);
+        if (!data.credentials) fetchCredentials(githubRepo, false);
+      } else if (localPath) {
+        fetchDependencies(localPath, true);
+        if (!data.credentials) fetchCredentials(localPath, true);
+      }
+      fetchCI();
+    } else {
+      const err = await resp.json().catch(() => ({}));
+      document.getElementById('heroDesc').innerHTML =
+        `<span style="color:var(--red)">${esc(err.detail || err.error || 'Scan failed')}</span>`;
     }
+  } catch (e) {
+    document.getElementById('heroDesc').innerHTML =
+      `<span style="color:var(--red)">Cannot reach API \u2014 is the server running?</span>`;
   }
 
   scanEnd();
-  if (!raw) {
-    document.getElementById('heroDesc').innerHTML =
-      '<span style="color:var(--text2)">Enter a GitHub repo (owner/repo) or local directory above, then hit Scan.</span>';
-  }
 }
 
 function copyBadge() {
   const el = document.getElementById('badgeCode');
   navigator.clipboard.writeText(el.textContent.trim()).catch(() => {});
   const orig = el.textContent;
-  el.textContent = 'Copied to clipboard!';
+  el.textContent = 'Copied!';
   el.classList.add('copied');
-  setTimeout(() => {
-    el.textContent = orig;
-    el.classList.remove('copied');
-  }, 1500);
+  setTimeout(() => { el.textContent = orig; el.classList.remove('copied'); }, 1200);
 }
 
 async function showHistory() {
@@ -1742,19 +2311,17 @@ async function showHistory() {
         const data = await resp.json();
         const entries = data.history || data.entries || [];
         if (Array.isArray(entries) && entries.length) {
-          // Seed sparkline from server data
-          STATE.history = entries.slice(-8).map(e => e.total || e.scores?.total || 0);
+          STATE.history = entries.slice(-10).map(e => e.total || e.scores?.total || 0);
           renderSparkline();
-
           content.innerHTML = entries.map(e => {
             const score = e.total || e.scores?.total || 0;
             const color = score >= 75 ? 'var(--teal)' : score >= 50 ? 'var(--amber)' : 'var(--red)';
             const grade = e.grade || '';
             const ts = e.ts ? new Date(e.ts).toLocaleString() : '';
-            const sha = (e.commit_sha || '').substring(0, 7);
+            const sha = (e.commit_sha && e.commit_sha !== 'unknown') ? e.commit_sha.substring(0, 7) : '';
             return `<div class="history-row">
               <div class="history-score" style="color:${color}">${score}</div>
-              <div>${esc(grade)}${sha ? ' · ' + sha : ''}</div>
+              <div style="color:var(--text2)">${esc(grade)}${sha ? ' \u00b7 ' + sha : ''}</div>
               <div class="history-ts">${esc(ts)}</div>
             </div>`;
           }).reverse().join('');
@@ -1769,11 +2336,11 @@ async function showHistory() {
       const color = s >= 75 ? 'var(--teal)' : s >= 50 ? 'var(--amber)' : 'var(--red)';
       return `<div class="history-row">
         <div class="history-score" style="color:${color}">${s}</div>
-        <div>Scan ${i + 1}</div>
+        <div style="color:var(--text2)">Scan ${i + 1}</div>
       </div>`;
     }).join('');
   } else {
-    content.innerHTML = '<div style="color:var(--text3);padding:12px 0">No scan history yet.</div>';
+    content.innerHTML = '<div style="color:var(--text3);padding:16px 0;text-align:center">No scans recorded yet</div>';
   }
 }
 
@@ -1781,31 +2348,168 @@ function closeHistory() {
   document.getElementById('historyOverlay').classList.remove('open');
 }
 
-// ─── LIVE MEMORY FETCH ───────────────────────────────────────────────────────
+// ─── REPO MAP MODAL ──────────────────────────────────────────────────────────
+
+const LANG_COLORS = [
+  '#F5A623','#00D4B1','#A78BFA','#FF5E5E','#FF8080','#FFC55C',
+  '#00F0CC','#5E9EFF','#FF9F43','#C084FC','#34D399','#F472B6',
+];
+
+function showRepoMap() {
+  document.getElementById('mapOverlay').classList.add('open');
+}
+function closeRepoMap() {
+  document.getElementById('mapOverlay').classList.remove('open');
+}
+
+function renderRepoMap(data) {
+  if (!data) return;
+  const el = document.getElementById('mapContent');
+
+  let html = '';
+
+  html += '<div class="map-stats">';
+  html += `<div class="map-stat"><div class="map-stat-value">${data.total_files}</div><div class="map-stat-label">Files</div></div>`;
+  html += `<div class="map-stat"><div class="map-stat-value">${data.total_directories}</div><div class="map-stat-label">Directories</div></div>`;
+  html += `<div class="map-stat"><div class="map-stat-value">${(data.languages || []).length}</div><div class="map-stat-label">Languages</div></div>`;
+  html += `<div class="map-stat"><div class="map-stat-value">${(data.key_files || []).length}</div><div class="map-stat-label">Key Files</div></div>`;
+  html += '</div>';
+
+  const langs = data.languages || [];
+  if (langs.length > 0) {
+    html += '<div class="map-section-title">Language Breakdown</div>';
+    html += '<div class="map-lang-bar">';
+    langs.forEach((l, i) => {
+      const color = LANG_COLORS[i % LANG_COLORS.length];
+      html += `<div class="map-lang-segment" style="width:${l.percentage}%;background:${color}" title="${esc(l.language)} ${l.percentage}%"></div>`;
+    });
+    html += '</div>';
+    html += '<div class="map-lang-legend">';
+    langs.forEach((l, i) => {
+      const color = LANG_COLORS[i % LANG_COLORS.length];
+      html += `<div class="map-lang-item"><div class="map-lang-dot" style="background:${color}"></div>${esc(l.language)} <span style="color:var(--text3)">${l.files} (${l.percentage}%)</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  const dirs = data.directories || [];
+  if (dirs.length > 0) {
+    html += '<div class="map-section-title">Directory Structure</div>';
+    html += '<div class="map-tree">';
+    (data.root_files || []).slice(0, 15).forEach(f => {
+      html += `${esc(f)}\n`;
+    });
+    dirs.forEach(d => {
+      html += `<span class="dir">${esc(d.path)}/</span> <span class="count">(${d.files} files)</span>\n`;
+      (d.children || []).forEach(c => {
+        html += `  ${esc(d.path)}/<span class="dir">${esc(c)}/</span>\n`;
+      });
+    });
+    html += '</div>';
+  }
+
+  const keyFiles = data.key_files || [];
+  if (keyFiles.length > 0) {
+    html += '<div class="map-section-title">Key Files Detected</div>';
+    html += '<div style="display:flex;flex-wrap:wrap;gap:2px">';
+    keyFiles.forEach(kf => {
+      html += `<div class="map-key-file"><span class="kf-name">${esc(kf.file.split('/').pop())}</span> <span style="color:var(--text3)">${esc(kf.role)}</span></div>`;
+    });
+    html += '</div>';
+  }
+
+  const ai = data.ai_config || {};
+  if (ai.total > 0) {
+    html += '<div class="map-section-title">AI Config Files (Repo Poisoning Risk)</div>';
+    (ai.findings || []).forEach(f => {
+      const riskClass = f.risk === 'critical' ? 'critical' : f.risk === 'high' ? 'high' : 'medium';
+      html += `<div class="map-ai-item">
+        <span class="map-ai-risk ${riskClass}">${f.risk.toUpperCase()}</span>
+        <div style="flex:1">
+          <div style="font-weight:500;color:var(--text)">${esc(f.file)}</div>
+          <div style="color:var(--text2);font-size:11px">${esc(f.description)}${f.cve ? ' \u00b7 <span style="color:var(--red)">' + esc(f.cve) + '</span>' : ''}</div>
+        </div>
+      </div>`;
+    });
+  } else {
+    html += '<div class="map-section-title">AI Config Files</div>';
+    html += '<div style="font-size:12px;color:var(--teal);padding:8px 0">\u2713 No AI editor config files detected — clean of repo poisoning vectors</div>';
+  }
+
+  el.innerHTML = html;
+}
+
+// ─── HELP MODAL ──────────────────────────────────────────────────────────────
+
+function showHelp() {
+  document.getElementById('helpOverlay').classList.add('open');
+}
+function closeHelp() {
+  document.getElementById('helpOverlay').classList.remove('open');
+}
+
+document.addEventListener('keydown', function(e) {
+  if (e.target.tagName === 'INPUT' || e.target.tagName === 'TEXTAREA' || e.target.isContentEditable) return;
+  if (e.key === '?') {
+    e.preventDefault();
+    const overlay = document.getElementById('helpOverlay');
+    overlay.classList.contains('open') ? closeHelp() : showHelp();
+  }
+  if (e.key === 'Escape') {
+    closeHelp();
+    closeHistory();
+    closeRepoMap();
+  }
+  if (e.key === 'h' || e.key === 'H') {
+    if (!document.getElementById('helpOverlay').classList.contains('open')) {
+      e.preventDefault();
+      showHistory();
+    }
+  }
+  if (e.key === 'm' || e.key === 'M') {
+    if (!document.getElementById('helpOverlay').classList.contains('open') &&
+        !document.getElementById('mapOverlay').classList.contains('open')) {
+      e.preventDefault();
+      showRepoMap();
+    }
+  }
+  if (e.key === '/') {
+    if (!document.getElementById('helpOverlay').classList.contains('open')) {
+      e.preventDefault();
+      const input = document.getElementById('repoInput');
+      if (input) input.focus();
+    }
+  }
+});
+
+// ─── LIVE MEMORY ─────────────────────────────────────────────────────────────
 
 async function fetchMemory() {
   try {
     const resp = await fetch('/v1/leaderboard');
     if (!resp.ok) return;
     const data = await resp.json();
-    // Only populate memory if scan didn't already provide patterns
     if (!STATE.memory.length && data.top_patterns && data.top_patterns.length) {
-      STATE.memory = data.top_patterns.map(p => ({
-        freq: p.count || 0,
-        pattern: p.description || p.id || 'Unknown',
-        repos: (p.repos || []).slice(0, 3).join(' · ') + ((p.repos || []).length > 3 ? ` +${(p.repos || []).length - 3}` : ''),
-        trend: 'up',
-        delta: `${(p.repos || []).length} repo${(p.repos || []).length !== 1 ? 's' : ''}`,
-      }));
+      STATE.memory = data.top_patterns
+        .filter(p => p.repos && p.repos.some(r => r))
+        .map(p => ({
+          freq: p.count || 0,
+          pattern: p.description || p.id || 'Unknown',
+          repos: (p.repos || []).filter(r => r).slice(0, 3).join(' \u00b7 ') +
+            ((p.repos || []).filter(r => r).length > 3 ? ` +${(p.repos || []).filter(r => r).length - 3}` : ''),
+          trend: 'up',
+          delta: `${(p.repos || []).filter(r => r).length} repo${(p.repos || []).filter(r => r).length !== 1 ? 's' : ''}`,
+        }));
       renderMemory();
     }
     if (data.leaderboard && data.leaderboard.length) {
-      document.getElementById('memBadge').textContent = data.leaderboard.length + ' repos indexed';
+      const validRepos = data.leaderboard.filter(r => r.repo);
+      document.getElementById('memBadge').textContent = validRepos.length + ' repos indexed';
     }
   } catch {}
 }
 
-// ─── ACTIVITY TRACKER ────────────────────────────────────────────────────
+// ─── ACTIVITY ────────────────────────────────────────────────────────────────
 
 async function fetchActivity(repo) {
   if (!repo) return;
@@ -1820,19 +2524,17 @@ async function fetchActivity(repo) {
 function renderActivity(data) {
   const el = document.getElementById('activityList');
   const items = [];
-
   const prs = (data.pull_requests?.recent || []).slice(0, 4);
   const commits = (data.commits?.recent || []).slice(0, 4);
 
   prs.forEach(pr => {
-    const stateClass = pr.merged_at ? 'merged' : (pr.state === 'open' ? 'open' : 'closed');
-    const stateIcon = pr.merged_at ? '⇄' : (pr.state === 'open' ? '↑' : '✕');
+    const stateIcon = pr.merged_at ? '\u21c4' : (pr.state === 'open' ? '\u2191' : '\u2715');
     items.push(`
       <div class="tracker-item">
         <div class="tracker-icon pr">${stateIcon}</div>
         <div class="tracker-body">
           <div class="tracker-title">#${pr.number} ${esc(pr.title)}</div>
-          <div class="tracker-meta">${esc(pr.author)} · ${esc(pr.state)}${pr.draft ? ' (draft)' : ''}</div>
+          <div class="tracker-meta">${esc(pr.author)} \u00b7 ${esc(pr.state)}${pr.draft ? ' (draft)' : ''}</div>
         </div>
       </div>
     `);
@@ -1841,10 +2543,10 @@ function renderActivity(data) {
   commits.forEach(c => {
     items.push(`
       <div class="tracker-item">
-        <div class="tracker-icon commit">●</div>
+        <div class="tracker-icon commit">\u25cf</div>
         <div class="tracker-body">
           <div class="tracker-title">${esc(c.message)}</div>
-          <div class="tracker-meta">${esc(c.sha)} · ${esc(c.author)}</div>
+          <div class="tracker-meta">${esc(c.sha)} \u00b7 ${esc(c.author)}</div>
         </div>
       </div>
     `);
@@ -1854,13 +2556,13 @@ function renderActivity(data) {
     el.innerHTML = items.join('');
     const openCount = data.pull_requests?.open_count || 0;
     const totalCommits = data.commits?.total_fetched || 0;
-    document.getElementById('activityBadge').textContent = `${openCount} open PRs · ${totalCommits} commits`;
+    document.getElementById('activityBadge').textContent = `${openCount} open \u00b7 ${totalCommits} commits`;
   } else {
-    el.innerHTML = '<div class="tracker-empty">No activity found</div>';
+    el.innerHTML = '<div class="panel-empty"><div class="panel-empty-icon">\u2714</div>No recent activity</div>';
   }
 }
 
-// ─── DEPENDENCY HEALTH ──────────────────────────────────────────────────
+// ─── DEPENDENCIES ────────────────────────────────────────────────────────────
 
 async function fetchDependencies(repoOrPath, isLocal) {
   try {
@@ -1879,18 +2581,17 @@ async function fetchDependencies(repoOrPath, isLocal) {
 function renderDependencies(data) {
   const el = document.getElementById('depsList');
   const badge = document.getElementById('depsBadge');
-
-  badge.textContent = `Grade ${data.health_grade} · ${data.total_deps} deps`;
+  badge.textContent = `${data.health_grade} \u00b7 ${data.total_deps} deps`;
 
   let html = '';
   const pct = data.health_score || 0;
   const barColor = pct >= 80 ? 'var(--teal)' : pct >= 50 ? 'var(--amber)' : 'var(--red)';
 
   html += `
-    <div style="padding: 12px 14px;">
+    <div style="padding:10px 14px;">
       <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
         <span style="color:var(--text2)">Pin ratio</span>
-        <span style="color:var(--text);font-weight:600">${data.pinned}/${data.total_deps} pinned (${pct}%)</span>
+        <span style="color:var(--text);font-weight:600">${data.pinned}/${data.total_deps} (${pct}%)</span>
       </div>
       <div class="dep-bar-track">
         <div class="dep-bar-fill" style="width:${pct}%;background:${barColor}"></div>
@@ -1900,7 +2601,7 @@ function renderDependencies(data) {
 
   (data.issues || []).forEach(issue => {
     const iconClass = issue.severity === 'high' ? 'dep-bad' : issue.severity === 'medium' ? 'dep-warn' : 'dep-ok';
-    const icon = issue.severity === 'high' ? '!' : issue.severity === 'medium' ? '△' : '✓';
+    const icon = issue.severity === 'high' ? '!' : issue.severity === 'medium' ? '\u25b3' : '\u2713';
     html += `
       <div class="tracker-item">
         <div class="tracker-icon ${iconClass}">${icon}</div>
@@ -1915,7 +2616,7 @@ function renderDependencies(data) {
   (data.security_flags || []).slice(0, 3).forEach(sf => {
     html += `
       <div class="tracker-item">
-        <div class="tracker-icon dep-bad">⚠</div>
+        <div class="tracker-icon dep-bad">\u26a0</div>
         <div class="tracker-body">
           <div class="tracker-title">${esc(sf.package)}</div>
           <div class="tracker-meta">${esc(sf.advisory)}</div>
@@ -1924,48 +2625,45 @@ function renderDependencies(data) {
     `;
   });
 
-  if (!html) html = '<div class="tracker-empty">No dependency files found</div>';
+  if (!html) html = '<div class="panel-empty"><div class="panel-empty-icon">\u2714</div>No dependency files found</div>';
   el.innerHTML = html;
 }
 
-// ─── CI STATUS (Jenkins / Woodpecker / GHA) ─────────────────────────────
+// ─── CI STATUS ───────────────────────────────────────────────────────────────
 
 async function fetchCI() {
   const el = document.getElementById('ciList');
   const badge = document.getElementById('ciBadge');
   const providers = ['jenkins', 'woodpecker', 'gha'];
   const jobName = document.getElementById('repoInput').value.trim().replace(/\//g, '-') || 'scigate';
-  let found = false;
 
   for (const provider of providers) {
     try {
       const resp = await fetch(`/v1/ci/${provider}/${jobName}`);
       if (!resp.ok) continue;
       const data = await resp.json();
-      if (!data.configured) continue;
-      if (data.error) continue;
+      if (!data.configured || data.error) continue;
 
-      found = true;
       const statusColors = {
-        success: 'jenkins-ok', failure: 'jenkins-fail', running: 'jenkins-run',
-        unstable: 'jenkins-run', pending: 'jenkins-run',
+        success: 'ci-ok', failure: 'ci-fail', running: 'ci-run',
+        unstable: 'ci-run', pending: 'ci-run',
       };
       const statusIcons = {
-        success: '✓', failure: '✕', running: '⟳', unstable: '△', pending: '…',
+        success: '\u2713', failure: '\u2715', running: '\u27f3', unstable: '\u25b3', pending: '\u2026',
       };
 
       const provLabel = provider === 'gha' ? 'GitHub Actions' : provider.charAt(0).toUpperCase() + provider.slice(1);
-      badge.textContent = `${provLabel} · ${data.status || 'unknown'}`;
+      badge.textContent = `${provLabel} \u00b7 ${data.status || 'unknown'}`;
       const last = data.last_build || {};
-      const iconClass = statusColors[data.status] || 'jenkins-run';
+      const iconClass = statusColors[data.status] || 'ci-run';
       const icon = statusIcons[data.status] || '?';
 
       el.innerHTML = `
         <div class="tracker-item">
           <div class="tracker-icon ${iconClass}">${icon}</div>
           <div class="tracker-body">
-            <div class="tracker-title">${esc(provLabel)}: ${data.name || jobName} #${last.number || '?'}</div>
-            <div class="tracker-meta">${last.result || 'Running'} · ${last.duration_ms ? Math.round(last.duration_ms/1000) + 's' : '?'}</div>
+            <div class="tracker-title">${esc(provLabel)}: ${esc(data.name || jobName)} #${last.number || '?'}</div>
+            <div class="tracker-meta">${esc(last.result || 'Running')} \u00b7 ${last.duration_ms ? Math.round(last.duration_ms/1000) + 's' : ''}</div>
           </div>
         </div>
       `;
@@ -1973,24 +2671,106 @@ async function fetchCI() {
     } catch {}
   }
 
-  if (!found) {
-    badge.textContent = 'not configured';
-    el.innerHTML = '<div class="tracker-empty">No CI provider configured</div>';
-  }
+  badge.textContent = '\u2014';
+  el.innerHTML = '<div class="panel-empty"><div class="panel-empty-icon">\u25b6</div>No CI provider detected</div>';
 }
 
-// ─── JOURNAL CHECKLIST ──────────────────────────────────────────────────
+// ─── CREDENTIAL HISTORY ──────────────────────────────────────────────────────
+
+function renderCredentials(data) {
+  const el = document.getElementById('credsList');
+  const badge = document.getElementById('credsBadge');
+
+  if (!data) {
+    badge.textContent = '\u2014';
+    el.innerHTML = '<div class="panel-empty"><div class="panel-empty-icon">\ud83d\udd12</div>Credential scan unavailable</div>';
+    return;
+  }
+
+  const sev = data.severity || 'clean';
+  const sevLabel = sev === 'clean' ? 'CLEAN' : sev === 'warning' ? 'WARNING' : 'CRITICAL';
+  const sevClass = sev === 'clean' ? 'clean' : sev === 'warning' ? 'warning' : 'critical';
+  badge.innerHTML = `<span class="cred-severity-badge ${sevClass}">${sevLabel}</span>`;
+
+  let html = '';
+
+  html += `
+    <div style="padding:10px 14px;">
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:4px;">
+        <span style="color:var(--text2)">Commits scanned</span>
+        <span style="color:var(--text);font-weight:600">${data.scanned_commits || 0}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;margin-bottom:2px;">
+        <span style="color:var(--text2)">Live secrets</span>
+        <span style="color:${data.live_secrets > 0 ? 'var(--red)' : 'var(--teal)'};font-weight:600">${data.live_secrets || 0}</span>
+      </div>
+      <div style="display:flex;justify-content:space-between;font-size:12px;">
+        <span style="color:var(--text2)">Deleted / reverted</span>
+        <span style="color:${data.history_secrets > 0 ? 'var(--amber)' : 'var(--teal)'};font-weight:600">${data.history_secrets || 0}</span>
+      </div>
+    </div>
+  `;
+
+  const findings = data.findings || [];
+  if (findings.length === 0 && sev === 'clean') {
+    html += `
+      <div class="tracker-item">
+        <div class="tracker-icon cred-clean">\u2713</div>
+        <div class="tracker-body">
+          <div class="tracker-title">No leaked credentials detected</div>
+          <div class="tracker-meta">${esc(data.summary || '')}</div>
+        </div>
+      </div>
+    `;
+  }
+
+  findings.slice(0, 8).forEach(f => {
+    const iconClass = f.source.startsWith('current') ? 'cred-crit' : 'cred-warn';
+    const icon = f.source.startsWith('current') ? '!' : '\u26a0';
+    const location = f.source.startsWith('current') ? 'LIVE' : f.source;
+    html += `
+      <div class="tracker-item">
+        <div class="tracker-icon ${iconClass}">${icon}</div>
+        <div class="tracker-body">
+          <div class="tracker-title">${esc(f.type)}</div>
+          <div class="tracker-meta">
+            <span style="font-family:var(--mono);font-size:10px;color:var(--text3)">${esc(f.snippet)}</span>
+            \u00b7 ${esc(location)}${f.file ? ' \u00b7 ' + esc(f.file.split('/').pop()) : ''}
+          </div>
+        </div>
+      </div>
+    `;
+  });
+
+  el.innerHTML = html;
+}
+
+async function fetchCredentials(repoOrPath, isLocal) {
+  try {
+    const body = isLocal ? { local_path: repoOrPath } : { github_repo: repoOrPath };
+    const resp = await fetch('/v1/credentials', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    });
+    if (!resp.ok) return;
+    const data = await resp.json();
+    renderCredentials(data);
+  } catch {}
+}
+
+// ─── JOURNAL CHECKLIST ───────────────────────────────────────────────────────
 
 async function runJournalCheck() {
   const journal = document.getElementById('journalSelect').value;
   const results = document.getElementById('journalResults');
   if (!journal) { results.innerHTML = ''; return; }
-  if (!LAST_REPO_SLUG && !document.getElementById('repoInput').value.trim()) {
-    results.innerHTML = '<span style="color:var(--text3)">Scan a repo first</span>';
+  if (!HAS_SCANNED) {
+    results.innerHTML = '<span style="color:var(--text3)">Run a scan first</span>';
     return;
   }
 
-  results.innerHTML = '<span style="color:var(--text3)">Checking…</span>';
+  results.innerHTML = '<span style="color:var(--text3)">Checking\u2026</span>';
 
   try {
     const raw = document.getElementById('repoInput').value.trim();
@@ -2012,10 +2792,10 @@ async function runJournalCheck() {
       results.innerHTML = '<span style="color:var(--text3)">No checklist data</span>';
       return;
     }
-    const summary = `<div style="margin-bottom:6px;font-weight:500;color:var(--text)">${esc(checklist.journal || journal)} — ${checklist.passed || 0}/${checklist.total || 0} passed</div>`;
+    const summary = `<div style="margin-bottom:6px;font-weight:500;color:var(--text)">${esc(checklist.journal || journal)} \u2014 ${checklist.passed || 0}/${checklist.total || 0} passed</div>`;
     results.innerHTML = summary + checks.map(c =>
       `<div class="journal-item">
-        <span class="${c.passed ? 'journal-pass' : 'journal-fail'}">${c.passed ? '✓' : '✕'}</span>
+        <span class="${c.passed ? 'journal-pass' : 'journal-fail'}">${c.passed ? '\u2713' : '\u2715'}</span>
         <span>${esc(c.criterion || c.name || '')}</span>
       </div>`
     ).join('');
@@ -2026,12 +2806,13 @@ async function runJournalCheck() {
 
 // ─── INIT ────────────────────────────────────────────────────────────────────
 
-window.addEventListener('load', () => {
-  setTimeout(renderAll, 200);
-});
-
 document.getElementById('repoInput').addEventListener('keydown', (e) => {
   if (e.key === 'Enter') runScan();
+});
+
+// Load existing memory on page load
+window.addEventListener('load', () => {
+  fetchMemory();
 });
 </script>
 </body>

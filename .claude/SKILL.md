@@ -2,20 +2,23 @@
 name: scigate
 version: 2.2.0
 description: |
-  Invoke for any SciGate file across agents/, api/, dashboard/, workers/,
+  Invoke for any SciGate file across agents/, api/, dashboard/,
   integrations/, policy/, or infra/. Loads the full domain classification
   rubric, multi-dimensional scoring rules, fix generation templates,
-  open-source VCS conventions, Anthropic API patterns, async worker
-  contracts, and enterprise observability standards.
+  open-source VCS conventions, Anthropic API patterns, and enterprise
+  observability standards.
 requires:
-  - anthropic>=0.25
-  - fastapi>=0.110
-  - celery>=5.3
-  - redis>=5.0
-  - neo4j>=5.0          # org memory graph (Community Edition)
-  - qdrant-client>=1.9  # semantic vector memory (open source)
-  - prometheus-client>=0.20
-  - opentelemetry-sdk>=1.24
+  - anthropic>=0.39
+  - fastapi>=0.115
+  - uvicorn>=0.30
+  - httpx>=0.27
+  - click>=8.1
+  - pyyaml>=6.0
+  - rich>=13.0
+  - gitpython>=3.1
+  - slowapi>=0.1.9
+  - filelock>=3.16
+  - pytest>=8.0
 stack: fully open source — self-hostable, cloud-portable
 tags: [reproducibility, science, agents, enterprise, open-source]
 ---
@@ -26,6 +29,58 @@ tags: [reproducibility, science, agents, enterprise, open-source]
 > any scientific repository, generate targeted AI-authored fixes, enforce
 > org-level quality gates, and learn continuously from every scan.
 > **100% open-source infrastructure. No vendor lock-in.**
+
+---
+
+## 0. Implementation Status
+
+### BUILT & WORKING (v2.2.0)
+
+| Component | Status | Files |
+|---|---|---|
+| Agent 1: Audit (6-dimension scoring, 8 domains) | ✅ Complete | `agents/audit_agent.py` |
+| Agent 2: Fix (Claude-powered PR generation) | ✅ Complete | `agents/fix_agent.py` |
+| Agent 3: Memory (JSONL + JSON flat-file, leaderboard, patterns) | ✅ Complete | `agents/memory_agent.py` |
+| Agent 4: Regression (detect score drops, block merge) | ✅ Complete | `agents/regression_agent.py` |
+| Agent 5: Notify (VCS check + adapter fan-out) | ✅ Complete | `agents/notify_agent.py` |
+| Tracker (PRs, commits, CI, deps, creds, repo map) | ✅ Complete | `agents/tracker.py` |
+| FastAPI server (20+ endpoints under /v1/) | ✅ Complete | `api/server.py` |
+| Dashboard SPA (score gauge, 6 dims, fixes, activity, secrets, map, help) | ✅ Complete | `dashboard/index.html` |
+| VCS adapters (GitHub, Gitea) | ✅ Complete | `integrations/vcs/` |
+| CI adapters (Jenkins, Woodpecker, GitHub Actions) | ✅ Complete | `integrations/ci/` |
+| Notify adapters (ntfy, Mattermost) | ✅ Complete | `integrations/notify/` |
+| Policy-as-Code (.scigate/policy.yml) | ✅ Complete | `policy/loader.py` |
+| CLI (scigate audit / scan / dashboard) | ✅ Complete | `scigate/cli.py` |
+| Credential History Digger (18 secret patterns, git history) | ✅ Complete | `agents/tracker.py` |
+| Repo Map Generator (languages, tree, key files) | ✅ Complete | `agents/tracker.py` |
+| AI Config / Repo Poisoning Detection (15+ file types) | ✅ Complete | `agents/tracker.py` |
+| Journal Compliance (Nature Methods, NeurIPS, PLOS ONE) | ✅ Complete | `agents/audit_agent.py` |
+| Dynamic Badge endpoint | ✅ Complete | `api/server.py` |
+| Score Certificate (HTML) | ✅ Complete | `api/server.py` |
+| Structured JSON logging | ✅ Complete | All agents + server |
+| Rate limiting (slowapi) | ✅ Complete | `api/server.py` |
+| Atomic file writes + file locking | ✅ Complete | `agents/memory_agent.py` |
+| Local path sandboxing | ✅ Complete | `api/server.py` |
+| Test suite (25 tests, all passing) | ✅ Complete | `tests/test_agents.py` |
+| Docker + Docker Compose | ✅ Complete | `Dockerfile`, `docker-compose.yml` |
+| GitHub Actions CI/CD | ✅ Complete | `.github/workflows/scigate.yml` |
+| GitHub webhook receiver (push + PR) | ✅ Complete | `api/server.py` |
+| Persistence: flat-file (JSONL + JSON) | ✅ Complete | `memory/` |
+
+### ENTERPRISE ROADMAP (not yet implemented)
+
+| Component | Purpose | Target infra |
+|---|---|---|
+| Celery + Redis task queue | Async scan job processing | Redis / RabbitMQ |
+| PostgreSQL persistence | Replace flat-file for multi-tenant | PostgreSQL / Citus |
+| Neo4j knowledge graph | Org-wide pattern graph queries | Neo4j Community |
+| Qdrant vector store | Semantic fix retrieval (few-shot) | Qdrant OSS |
+| Keycloak SSO/RBAC | Multi-tenant auth | Keycloak |
+| MinIO object storage | PDF reports, badge SVGs, SBOMs | MinIO |
+| Prometheus + Grafana | Metrics dashboards | Prometheus |
+| Tempo + OTel tracing | Distributed traces | Grafana Tempo |
+| Loki log aggregation | Centralized logging | Grafana Loki |
+| WeasyPrint PDF reports | Compliance report generation | Worker pool |
 
 ---
 

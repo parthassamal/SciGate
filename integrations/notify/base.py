@@ -7,9 +7,11 @@ Supports: Mattermost, ntfy, Postal (email), MS Teams, Grafana OnCall.
 from __future__ import annotations
 
 import os
+import logging
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Any
+
+logger = logging.getLogger("scigate.notify")
 
 
 @dataclass
@@ -57,8 +59,8 @@ def get_notify_adapters() -> list[NotifyAdapter]:
         if ch and ch in NOTIFY_REGISTRY:
             try:
                 adapters.append(NOTIFY_REGISTRY[ch]())
-            except Exception:
-                continue
+            except Exception as exc:
+                logger.warning("Failed to init notify adapter '%s': %s", ch, exc)
     return adapters
 
 
@@ -70,6 +72,6 @@ def fan_out(event: ScanEvent) -> list[str]:
             try:
                 adapter.send(event)
                 sent_to.append(type(adapter).__name__)
-            except Exception:
-                continue
+            except Exception as exc:
+                logger.warning("Notify adapter %s failed: %s", type(adapter).__name__, exc)
     return sent_to

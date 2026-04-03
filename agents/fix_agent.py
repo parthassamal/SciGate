@@ -14,15 +14,18 @@ Environment variables required:
 """
 
 import os
+import sys
 import json
 import argparse
+import logging
 import textwrap
 import time
-from pathlib import Path
 from typing import Any
 
 import anthropic
 import httpx
+
+logger = logging.getLogger("scigate.fix")
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
@@ -344,15 +347,15 @@ def run(score_json: dict[str, Any], repo: str) -> dict[str, Any]:
     sha = score_json["commit_sha"]
     score_before = score_json["scores"]["total"]
 
-    print(f"[SciGate Agent 2] Domain: {domain} | Score: {score_before}/100")
-    print(f"[SciGate Agent 2] Processing {len(fixes)} fixes...")
+    logger.info("Domain: %s | Score: %d/100", domain, score_before)
+    logger.info("Processing %d fixes...", len(fixes))
 
     all_file_actions: list[dict[str, str]] = []
     pr_notes: list[str] = []
     total_points_projected = score_before
 
     for fix in fixes:
-        print(f"  -> Fix {fix['rank']}: {fix['title']} (+{fix['points_recoverable']} pts)")
+        logger.info("Fix %d: %s (+%d pts)", fix["rank"], fix["title"], fix["points_recoverable"])
 
         file_contents: dict[str, str] = {}
         fetch_ref = sha if sha and sha != "unknown" else "main"
@@ -364,13 +367,13 @@ def run(score_json: dict[str, Any], repo: str) -> dict[str, Any]:
         try:
             fix_result = generate_fix(client, domain, fix, file_contents)
         except Exception as exc:
-            print(f"    ! Claude fix generation failed: {exc}")
+            logger.warning("Claude fix generation failed: %s", exc)
             continue
 
         for file_change in fix_result.get("files", []):
             path = file_change["path"]
             if is_protected(path):
-                print(f"    X Skipped protected file: {path}")
+                logger.info("Skipped protected file: %s", path)
                 continue
 
             action = "update" if path in file_contents else "create"
@@ -379,20 +382,20 @@ def run(score_json: dict[str, Any], repo: str) -> dict[str, Any]:
                 "file_path": path,
                 "content": file_change["content"],
             })
-            print(f"    + Staged {action}: {path}")
+            logger.info("Staged %s: %s", action, path)
 
         pr_notes.append(f"- {fix_result.get('mr_note', fix['title'])}")
         total_points_projected += fix_result.get("points_recovered", 0)
         time.sleep(0.5)
 
     if not all_file_actions:
-        print("[SciGate Agent 2] No safe file changes generated.")
+        logger.info("No safe file changes generated.")
         return {"status": "no_changes", "score_before": score_before}
 
     branch = f"scigate/fix-{sha[:8]}"
     score_projected = min(total_points_projected, 100)
 
-    print(f"\n[SciGate Agent 2] Creating branch: {branch}")
+    logger.info("Creating branch: %s", branch)
     github.create_branch(branch, ref="main")
 
     commit_message = (
@@ -429,8 +432,8 @@ def run(score_json: dict[str, Any], repo: str) -> dict[str, Any]:
         description=pr_description,
     )
 
-    print(f"\n[SciGate Agent 2] PR created: {pr.get('html_url', 'unknown')}")
-    print(f"[SciGate Agent 2] Score: {score_before} -> {score_projected} (projected)")
+    logger.info("PR created: %s", pr.get("html_url", "unknown"))
+    logger.info("Score: %d -> %d (projected)", score_before, score_projected)
 
     return {
         "status": "pr_created",
@@ -451,8 +454,15 @@ if __name__ == "__main__":
     parser.add_argument("--repo", required=True, help="GitHub repo (owner/repo)")
     args = parser.parse_args()
 
-    with open(args.score_json) as f:
-        score = json.load(f)
+    try:
+        with open(args.score_json) as f:
+            score = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: file not found: {args.score_json}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {args.score_json}: {e}")
+        sys.exit(1)
 
     result = run(score, args.repo)
     print("\n-- Result --")

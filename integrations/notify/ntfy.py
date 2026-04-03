@@ -44,6 +44,7 @@ class NtfyAdapter(NotifyAdapter):
                 f"Gate: {'BLOCKED' if event.gate_blocked else 'CLEAR'}\n"
                 f"Fixes: {event.fixes_count}"
             ),
+            timeout=10,
         )
 
     def supports_grade(self, grade: str) -> bool:

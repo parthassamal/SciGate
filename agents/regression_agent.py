@@ -14,6 +14,7 @@ Usage:
 
 from __future__ import annotations
 
+import sys
 import json
 from pathlib import Path
 from dataclasses import dataclass, field, asdict
@@ -52,8 +53,12 @@ def _load_history(repo_name: str, history_dir: str = "memory/scans") -> list[dic
     path = Path(history_dir) / f"{slug}.jsonl"
     if not path.exists():
         return []
+    try:
+        text = path.read_text()
+    except OSError:
+        return []
     records = []
-    for line in path.read_text().splitlines():
+    for line in text.splitlines():
         line = line.strip()
         if line:
             try:
@@ -72,7 +77,7 @@ def check_regression(
     """Compare current scan against previous scans and detect regressions."""
     result = RegressionResult(current_score=current_scan["scores"]["total"])
 
-    history = _load_history(repo_name, history_dir)
+    history = _load_history(repo_name, history_dir)[:LOOKBACK]
     if not history:
         result.message = "No previous scans — skipping regression check."
         return result
@@ -125,8 +130,15 @@ if __name__ == "__main__":
     parser.add_argument("--gate", action="store_true", help="Enable regression gate")
     args = parser.parse_args()
 
-    with open(args.score_json) as f:
-        scan = json.load(f)
+    try:
+        with open(args.score_json) as f:
+            scan = json.load(f)
+    except FileNotFoundError:
+        print(f"Error: file not found: {args.score_json}")
+        sys.exit(1)
+    except json.JSONDecodeError as e:
+        print(f"Error: invalid JSON in {args.score_json}: {e}")
+        sys.exit(1)
 
     r = check_regression(scan, args.repo_name, args.history_dir, args.gate)
     print(json.dumps(r.to_dict(), indent=2))
