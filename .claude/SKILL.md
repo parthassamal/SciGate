@@ -635,5 +635,4 @@ SciGate auto-detects the following tool markers and awards scoring bonuses:
 | 4 | LLM-authored methodology review (hallucination risk flagging) |
 | 5 | Public opt-in leaderboard + DOI-linked reproducibility certificates |
 | 5 | Model card completeness scoring |
-| 5 | arXiv paper ↔ repo linking |
 | 5 | Forgejo support |

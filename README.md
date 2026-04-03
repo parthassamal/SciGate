@@ -293,8 +293,7 @@ provider means implementing one class.
 
 ## API Endpoints
 
-All endpoints are available under the `/v1/` prefix. Legacy routes without
-the prefix are maintained for backward compatibility.
+All endpoints are under the `/v1/` prefix.
 
 ### Scan & Score
 | Method | Path | Description |
@@ -511,7 +510,6 @@ graph LR
 | 4 | LLM-authored methodology review (hallucination risk flagging) |
 | 5 | Public opt-in leaderboard + DOI-linked reproducibility certificates |
 | 5 | Model card completeness scoring |
-| 5 | arXiv paper ↔ repo linking |
 | 5 | Forgejo support |
 
 ---

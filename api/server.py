@@ -34,6 +34,9 @@ import sys
 import json
 import logging
 import tempfile
+import uuid
+import threading
+from datetime import datetime, timezone
 from pathlib import Path
 from typing import Optional, Literal
 
@@ -141,6 +144,7 @@ class ScanRequest(BaseModel):
     trigger:         Literal["push", "pr", "tag", "slash_command", "schedule", "api"] = "api"
     run_fix_agent:   bool           = Field(False, description="Trigger Agent 2 after audit")
     repo_name:       Optional[str]  = Field(None,  description="Override repo display name")
+    async_mode:      bool           = Field(False, description="Return scan_id immediately, poll for results")
 
 
 class ScanResponse(BaseModel):
@@ -176,6 +180,28 @@ class LeaderboardResponse(BaseModel):
     top_patterns: list
 
 
+# ─── ASYNC SCAN STORE ─────────────────────────────────────────────────────────
+
+_scan_store: dict[str, dict] = {}
+_scan_lock = threading.Lock()
+MAX_SCAN_STORE = 200
+
+
+def _set_scan_status(scan_id: str, status: str, **kwargs):
+    with _scan_lock:
+        if scan_id not in _scan_store:
+            _scan_store[scan_id] = {"scan_id": scan_id}
+        _scan_store[scan_id].update(status=status, updated_at=datetime.now(timezone.utc).isoformat(), **kwargs)
+
+
+def _prune_scan_store():
+    with _scan_lock:
+        if len(_scan_store) > MAX_SCAN_STORE:
+            ids = sorted(_scan_store, key=lambda k: _scan_store[k].get("updated_at", ""))
+            for old_id in ids[:len(ids) - MAX_SCAN_STORE]:
+                del _scan_store[old_id]
+
+
 # ─── HEALTH ──────────────────────────────────────────────────────────────────
 
 @app.get("/health", response_model=HealthResponse)
@@ -201,14 +227,8 @@ def health():
 
 # ─── SCAN ─────────────────────────────────────────────────────────────────────
 
-@app.post("/v1/scan", response_model=ScanResponse)
-def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
-    if not req.local_path and not req.github_repo and not req.gitea_repo:
-        raise HTTPException(
-            status_code=422,
-            detail="Provide local_path, github_repo, or gitea_repo",
-        )
-
+def _run_scan_pipeline(req: ScanRequest, scan_id: str | None = None) -> dict:
+    """Core scan pipeline shared by sync and async modes."""
     if req.local_path:
         path = validate_local_path(req.local_path)
         reader = RepoReader(mode="local", path=str(path))
@@ -217,6 +237,9 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
         remote_repo = req.github_repo or req.gitea_repo
         reader = RepoReader(mode="github", repo=remote_repo, ref=req.ref)
         repo_name = req.repo_name or remote_repo
+
+    if scan_id:
+        _set_scan_status(scan_id, "auditing", progress=10, repo=repo_name)
 
     try:
         score = audit(reader, commit_sha=req.commit_sha, trigger=req.trigger)
@@ -230,9 +253,12 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
         if "404" in msg:
             raise HTTPException(
                 status_code=404,
-                detail=f"Repository not found or not accessible: {req.github_repo or req.gitea_repo or req.local_path}",
+                detail=f"Repository not found: {req.github_repo or req.gitea_repo or req.local_path}",
             )
         raise HTTPException(status_code=500, detail=f"Scan failed: {msg[:200]}")
+
+    if scan_id:
+        _set_scan_status(scan_id, "post_processing", progress=60, score=score["scores"]["total"])
 
     tmp = tempfile.NamedTemporaryFile(suffix=".json", delete=False, mode="w")
     tmp.write(json.dumps(score))
@@ -244,7 +270,17 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
     if req.run_fix_agent and os.environ.get("ANTHROPIC_API_KEY"):
         gh_repo = req.github_repo or req.gitea_repo or ""
         if gh_repo:
-            background_tasks.add_task(_run_fix_agent_bg, score_path=str(score_path), repo=gh_repo)
+            try:
+                from agents.fix_agent import run as fix_run
+                fix_result = fix_run(score, gh_repo)
+                fix_pr_url = fix_result.get("pr_url")
+            except Exception as exc:
+                logger.warning("Fix agent failed (non-fatal): %s", exc)
+            finally:
+                score_path.unlink(missing_ok=True)
+
+    if scan_id:
+        _set_scan_status(scan_id, "regression_check", progress=75)
 
     regression_result = None
     try:
@@ -253,6 +289,9 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
         regression_result = reg.to_dict()
     except Exception as exc:
         logger.warning("Regression check failed (non-fatal): %s", exc)
+
+    if scan_id:
+        _set_scan_status(scan_id, "memory", progress=85)
 
     mem_result = None
     try:
@@ -276,7 +315,11 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
     except Exception as exc:
         logger.warning("Repo map failed (non-fatal): %s", exc)
 
-    background_tasks.add_task(_run_notify_bg, score, repo_name, fix_pr_url)
+    try:
+        from agents.notify_agent import notify
+        notify(score, repo_name, fix_pr_url)
+    except Exception as exc:
+        logger.warning("Notify failed (non-fatal): %s", exc)
 
     result = {k: v for k, v in score.items() if not k.startswith("_")}
     return {
@@ -287,6 +330,83 @@ def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
         "credentials": cred_result,
         "repo_map":    map_result,
     }
+
+
+def _run_async_scan(req: ScanRequest, scan_id: str):
+    """Background worker for async scans."""
+    try:
+        result = _run_scan_pipeline(req, scan_id=scan_id)
+        _set_scan_status(scan_id, "completed", progress=100, result=result)
+    except HTTPException as exc:
+        _set_scan_status(scan_id, "failed", progress=100, error=exc.detail)
+    except Exception as exc:
+        _set_scan_status(scan_id, "failed", progress=100, error=str(exc)[:300])
+    _prune_scan_store()
+
+
+@app.post("/v1/scan")
+def scan(req: ScanRequest, request: Request, background_tasks: BackgroundTasks):
+    if not req.local_path and not req.github_repo and not req.gitea_repo:
+        raise HTTPException(
+            status_code=422,
+            detail="Provide local_path, github_repo, or gitea_repo",
+        )
+
+    if req.async_mode:
+        scan_id = str(uuid.uuid4())
+        _set_scan_status(scan_id, "queued", progress=0,
+                         repo=req.github_repo or req.gitea_repo or req.local_path)
+        thread = threading.Thread(target=_run_async_scan, args=(req, scan_id), daemon=True)
+        thread.start()
+        return {"scan_id": scan_id, "status": "queued", "poll_url": f"/v1/scan/{scan_id}"}
+
+    result = _run_scan_pipeline(req)
+    return result
+
+
+@app.get("/v1/scan/{scan_id}")
+def get_scan_status(scan_id: str):
+    """Poll the status of an async scan."""
+    with _scan_lock:
+        entry = _scan_store.get(scan_id)
+    if not entry:
+        raise HTTPException(status_code=404, detail="Scan not found")
+    return entry
+
+
+# ─── WEBSOCKET PROGRESS ──────────────────────────────────────────────────────
+
+try:
+    from fastapi import WebSocket, WebSocketDisconnect
+
+    @app.websocket("/ws/scan/{scan_id}")
+    async def ws_scan_progress(websocket: WebSocket, scan_id: str):
+        """Stream scan progress updates over WebSocket."""
+        await websocket.accept()
+        import asyncio
+        last_status = None
+        try:
+            for _ in range(300):  # 5 min max
+                with _scan_lock:
+                    entry = _scan_store.get(scan_id)
+                if not entry:
+                    await websocket.send_json({"error": "scan_not_found"})
+                    break
+                if entry.get("status") != last_status:
+                    await websocket.send_json(entry)
+                    last_status = entry.get("status")
+                if last_status in ("completed", "failed"):
+                    break
+                await asyncio.sleep(1)
+        except WebSocketDisconnect:
+            pass
+        finally:
+            try:
+                await websocket.close()
+            except Exception:
+                pass
+except ImportError:
+    pass
 
 
 # ─── LEADERBOARD & HISTORY ──────────────────────────────────────────────────
@@ -498,7 +618,9 @@ def get_help():
             },
         },
         "endpoints": [
-            {"method": "POST", "path": "/v1/scan",                   "desc": "Scan a repo (local_path or github_repo)"},
+            {"method": "POST", "path": "/v1/scan",                   "desc": "Scan a repo (sync or async_mode=true for background scan)"},
+            {"method": "GET",  "path": "/v1/scan/{scan_id}",        "desc": "Poll async scan status and result"},
+            {"method": "WS",   "path": "/ws/scan/{scan_id}",        "desc": "WebSocket stream for live scan progress"},
             {"method": "GET",  "path": "/v1/leaderboard",            "desc": "Org leaderboard and recurring patterns"},
             {"method": "GET",  "path": "/v1/repo/{repo_slug}/history",    "desc": "Scan history for a repo (slug: owner__repo)"},
             {"method": "POST", "path": "/v1/dependencies",           "desc": "Dependency health analysis"},
@@ -765,26 +887,6 @@ if DASHBOARD_DIR.exists():
 
 
 # ─── BACKGROUND TASK HELPERS ─────────────────────────────────────────────────
-
-def _run_fix_agent_bg(score_path: str, repo: str) -> None:
-    try:
-        from agents.fix_agent import run as fix_run
-        with open(score_path) as f:
-            score = json.load(f)
-        fix_run(score, repo)
-    except Exception as exc:
-        logger.error("Fix agent background task failed: %s", exc)
-    finally:
-        Path(score_path).unlink(missing_ok=True)
-
-
-def _run_notify_bg(scan: dict, repo: str, pr_url: str | None) -> None:
-    try:
-        from agents.notify_agent import notify
-        notify(scan, repo, pr_url)
-    except Exception as exc:
-        logger.warning("Notify agent failed (non-fatal): %s", exc)
-
 
 def _run_webhook_scan(repo: str, ref: str, sha: str, trigger: str = "push") -> None:
     try:

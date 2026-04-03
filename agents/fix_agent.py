@@ -15,6 +15,7 @@ Environment variables required:
 
 import os
 import sys
+import ast
 import json
 import argparse
 import logging
@@ -29,8 +30,9 @@ logger = logging.getLogger("scigate.fix")
 
 # ── CONFIG ────────────────────────────────────────────────────────────────────
 
-ANTHROPIC_MODEL  = "claude-sonnet-4-20250514"
+ANTHROPIC_MODEL  = os.getenv("SCIGATE_FIX_MODEL", "claude-sonnet-4-20250514")
 MAX_TOKENS       = 4096
+MAX_FIX_TURNS    = int(os.getenv("SCIGATE_FIX_MAX_TURNS", "3"))
 GATE_THRESHOLD   = int(os.getenv("SCIGATE_THRESHOLD", "75"))
 
 PROTECTED_PATTERNS = [
@@ -174,7 +176,42 @@ def build_skill_context(domain: str, fix: dict[str, Any]) -> str:
     """).strip()
 
 
+# ── PATCH VALIDATION ──────────────────────────────────────────────────────────
+
+def validate_python_patch(content: str, path: str) -> str | None:
+    """Validate a Python file patch. Returns None if valid, error string if not."""
+    if not path.endswith(".py"):
+        return None
+    try:
+        ast.parse(content, filename=path)
+        return None
+    except SyntaxError as exc:
+        return f"SyntaxError at line {exc.lineno}: {exc.msg}"
+
+
+def validate_fix_result(fix_result: dict) -> list[str]:
+    """Validate all files in a fix result. Returns list of error descriptions."""
+    errors = []
+    for file_change in fix_result.get("files", []):
+        path = file_change.get("path", "")
+        content = file_change.get("content", "")
+        err = validate_python_patch(content, path)
+        if err:
+            errors.append(f"{path}: {err}")
+    return errors
+
+
 # ── CLAUDE FIX CALL ───────────────────────────────────────────────────────────
+
+def _parse_claude_json(raw: str) -> dict:
+    """Extract JSON from Claude's response, handling markdown fences."""
+    raw = raw.strip()
+    if raw.startswith("```"):
+        raw = raw.split("```")[1]
+        if raw.startswith("json"):
+            raw = raw[4:]
+    return json.loads(raw)
+
 
 def generate_fix(
     client: anthropic.Anthropic,
@@ -182,6 +219,7 @@ def generate_fix(
     fix: dict[str, Any],
     file_contents: dict[str, str],
 ) -> dict[str, Any]:
+    """Generate a fix with multi-turn validation (up to MAX_FIX_TURNS attempts)."""
     file_context_parts = []
     for path in fix["files"]:
         if path in file_contents:
@@ -200,27 +238,54 @@ def generate_fix(
         + "\n\nGenerate the fix. Return only JSON."
     )
 
-    response = client.messages.create(
-        model=ANTHROPIC_MODEL,
-        max_tokens=MAX_TOKENS,
-        system=build_skill_context(domain, fix),
-        messages=[{"role": "user", "content": user_message}],
-    )
+    messages = [{"role": "user", "content": user_message}]
+    system_prompt = build_skill_context(domain, fix)
 
-    raw = response.content[0].text.strip()
+    for turn in range(MAX_FIX_TURNS):
+        response = client.messages.create(
+            model=ANTHROPIC_MODEL,
+            max_tokens=MAX_TOKENS,
+            system=system_prompt,
+            messages=messages,
+        )
 
-    if raw.startswith("```"):
-        raw = raw.split("```")[1]
-        if raw.startswith("json"):
-            raw = raw[4:]
+        raw = response.content[0].text.strip()
+        try:
+            fix_result = _parse_claude_json(raw)
+        except json.JSONDecodeError as exc:
+            if turn < MAX_FIX_TURNS - 1:
+                logger.info("Turn %d: Claude returned invalid JSON, requesting correction", turn + 1)
+                messages.append({"role": "assistant", "content": raw})
+                messages.append({"role": "user", "content":
+                    f"Your response was not valid JSON. Error: {exc}\n"
+                    "Please return ONLY valid JSON matching the schema."
+                })
+                continue
+            raise ValueError(
+                f"Claude returned non-JSON after {MAX_FIX_TURNS} attempts for '{fix['title']}': {exc}"
+            ) from exc
 
-    try:
-        return json.loads(raw)
-    except json.JSONDecodeError as exc:
-        raise ValueError(
-            f"Claude returned non-JSON for fix '{fix['title']}': {exc}\n"
-            f"Raw (first 400 chars): {raw[:400]}"
-        ) from exc
+        validation_errors = validate_fix_result(fix_result)
+        if not validation_errors:
+            if turn > 0:
+                logger.info("Turn %d: fix validated successfully after refinement", turn + 1)
+            return fix_result
+
+        if turn < MAX_FIX_TURNS - 1:
+            logger.info("Turn %d: validation errors found, requesting correction: %s", turn + 1, "; ".join(validation_errors))
+            messages.append({"role": "assistant", "content": raw})
+            messages.append({"role": "user", "content":
+                "The generated code has syntax errors that must be fixed:\n\n"
+                + "\n".join(f"- {e}" for e in validation_errors) +
+                "\n\nPlease regenerate the fix with corrected Python syntax. "
+                "Return only valid JSON."
+            })
+        else:
+            logger.warning("Fix '%s' has validation errors after %d turns: %s",
+                           fix["title"], MAX_FIX_TURNS, "; ".join(validation_errors))
+            return fix_result
+
+    return fix_result
 
 
 # ── SAFETY CHECK ──────────────────────────────────────────────────────────────
